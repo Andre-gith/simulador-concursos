@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "contentNotice": "CONTEÚDO FICTÍCIO E ORIGINAL, criado exclusivamente para demonstrar o formato. Não corresponde a questão oficial nem a concurso real.",
+  "reviewStatus": "IN_REVIEW",
+  "contest": {
+    "board": "BANCA DEMONSTRATIVA",
+    "agency": "ÓRGÃO DEMONSTRATIVO",
+    "edition": "Exemplo de importação",
+    "year": 2026,
+    "position": "Cargo demonstrativo",
+    "specialty": "Especialidade demonstrativa",
+    "educationLevel": "SUPERIOR"
+  },
+  "paper": {
+    "code": "DEMO-001",
+    "appliedAt": "2026-01-18T12:00:00-03:00"
+  },
+  "scoringRule": {
+    "type": "MC_NO_PENALTY",
+    "pointsCorrect": 1,
+    "pointsWrong": 0,
+    "pointsBlank": 0,
+    "floorAtZero": true,
+    "minimumTotalScore": 1,
+    "minimumCorrect": 1
+  },
+  "blocks": [
+    {
+      "name": "Bloco demonstrativo",
+      "order": 1,
+      "minimumScore": 1,
+      "minimumCorrect": 1
+    }
+  ],
+  "subjects": [
+    {
+      "name": "Conhecimentos demonstrativos",
+      "topics": [
+        "Validação de dados"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "number": 1,
+      "type": "MC",
+      "subject": "Conhecimentos demonstrativos",
+      "topic": "Validação de dados",
+      "block": "Bloco demonstrativo",
+      "weight": 1,
+      "statement": "Em um processo de importação seguro, qual etapa deve ocorrer antes da gravação no banco?",
+      "alternatives": [
+        {
+          "letter": "A",
+          "text": "Validar integralmente o documento.",
+          "isCorrect": true
+        },
+        {
+          "letter": "B",
+          "text": "Ignorar campos desconhecidos.",
+          "isCorrect": false
+        },
+        {
+          "letter": "C",
+          "text": "Gravar cada registro antes de validar o seguinte.",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "type": "CE",
+      "subject": "Conhecimentos demonstrativos",
+      "topic": "Validação de dados",
+      "block": "Bloco demonstrativo",
+      "weight": 2,
+      "statement": "Uma transação atômica evita que uma falha deixe apenas parte da prova gravada.",
+      "ceAnswer": true
+    }
+  ]
+}

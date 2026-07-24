@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EducationLevel {
+  FUNDAMENTAL
+  MEDIO
+  TECNICO
+  SUPERIOR
+}
+
+enum PublicationStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ScoringType {
+  CE_PENALTY
+  MC_NO_PENALTY
+  MC_NEGATIVE
+}
+
+enum QuestionType {
+  CE
+  MC
+}
+
+enum ImportStatus {
+  PENDING
+  EXTRACTED
+  REVIEWED
+  PUBLISHED
+  FAILED
+}
+
+enum AttemptFinishReason {
+  MANUAL
+  TIME_EXPIRED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model Banca {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  concursos Concurso[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now()) @updatedAt
+}
+
+model Concurso {
+  id              String            @id @default(cuid())
+  bancaId         String
+  banca           Banca             @relation(fields: [bancaId], references: [id])
+  orgao           String
+  cargo           String
+  ano             Int
+  edicao          String?
+  nivel           EducationLevel?
+  especialidade   String?
+  dataProva       DateTime?
+  editalUrl       String?
+  officialPageUrl String?
+  status          PublicationStatus @default(PUBLISHED)
+
+  scoringRule    ScoringRule?
+  blocks         ExamBlock[]
+  papers         ExamPaper[]
+  questions      Question[]
+  importJobs     ImportJob[]
+  simulatedExams SimulatedExam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([bancaId])
+  @@index([orgao, ano])
+  @@index([status])
+}
+
+model ScoringRule {
+  id                String      @id @default(cuid())
+  concursoId        String      @unique
+  concurso          Concurso    @relation(fields: [concursoId], references: [id])
+  type              ScoringType
+  pointsCorrect     Float
+  pointsWrong       Float
+  pointsBlank       Float       @default(0)
+  minimumTotalScore Float?
+  minimumCorrect    Int?
+  floorAtZero       Boolean     @default(true)
+}
+
+model ExamBlock {
+  id             String     @id @default(cuid())
+  concursoId     String
+  concurso       Concurso   @relation(fields: [concursoId], references: [id])
+  name           String
+  order          Int        @default(0)
+  minimumScore   Float?
+  minimumCorrect Int?
+  questions      Question[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @default(now()) @updatedAt
+
+  @@unique([concursoId, name])
+  @@index([concursoId, order])
+}
+
+model ExamPaper {
+  id          String     @id @default(cuid())
+  concursoId  String
+  concurso    Concurso   @relation(fields: [concursoId], references: [id])
+  code        String
+  title       String?
+  appliedAt   DateTime?
+  provaUrl    String?
+  gabaritoUrl String?
+  questions   Question[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+
+  @@unique([concursoId, code])
+  @@index([concursoId])
+}
+
+model Subject {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  topics    Topic[]
+  questions Question[]
+}
+
+model Topic {
+  id        String     @id @default(cuid())
+  subjectId String
+  subject   Subject    @relation(fields: [subjectId], references: [id])
+  name      String
+  questions Question[]
+
+  @@unique([subjectId, name])
+  @@index([subjectId])
+}
+
+model Question {
+  id         String   @id @default(cuid())
+  concursoId String
+  concurso   Concurso @relation(fields: [concursoId], references: [id])
+
+  paperId String?
+  paper   ExamPaper? @relation(fields: [paperId], references: [id])
+
+  blockId String?
+  block   ExamBlock? @relation(fields: [blockId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  topicId String?
+  topic   Topic?  @relation(fields: [topicId], references: [id])
+
+  number    Int?
+  type      QuestionType
+  statement String            @db.Text
+  ceAnswer  Boolean?
+  weight    Float             @default(1)
+  status    PublicationStatus @default(PUBLISHED)
+
+  alternatives Alternative[]
+
+  sourceUrl  String?
+  sourcePage Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  simulatedExamQuestions SimulatedExamQuestion[]
+  attemptAnswers         AttemptAnswer[]
+
+  @@index([concursoId])
+  @@index([paperId])
+  @@index([blockId])
+  @@index([subjectId])
+  @@index([topicId])
+  @@index([status])
+}
+
+model Alternative {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  letter     String
+  text       String
+  isCorrect  Boolean
+
+  @@unique([questionId, letter])
+  @@index([questionId])
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String?
+  role         UserRole  @default(USER)
+  attempts     Attempt[]
+  createdAt    DateTime  @default(now())
+}
+
+model SimulatedExam {
+  id              String                  @id @default(cuid())
+  title           String
+  concursoId      String?
+  concurso        Concurso?               @relation(fields: [concursoId], references: [id])
+  durationMinutes Int?
+  createdAt       DateTime                @default(now())
+  questions       SimulatedExamQuestion[]
+  attempts        Attempt[]
+
+  @@index([concursoId])
+}
+
+model SimulatedExamQuestion {
+  id              String        @id @default(cuid())
+  simulatedExamId String
+  simulatedExam   SimulatedExam @relation(fields: [simulatedExamId], references: [id])
+  questionId      String
+  question        Question      @relation(fields: [questionId], references: [id])
+  order           Int
+
+  @@unique([simulatedExamId, questionId])
+  @@index([simulatedExamId, order])
+  @@index([questionId])
+}
+
+model Attempt {
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id])
+  simulatedExamId String
+  simulatedExam   SimulatedExam        @relation(fields: [simulatedExamId], references: [id])
+  startedAt       DateTime             @default(now())
+  finishedAt      DateTime?
+  finishReason    AttemptFinishReason?
+  totalScore      Float?
+  answers         AttemptAnswer[]
+
+  @@index([userId])
+  @@index([simulatedExamId])
+  @@index([finishedAt])
+}
+
+model AttemptAnswer {
+  id           String   @id @default(cuid())
+  attemptId    String
+  attempt      Attempt  @relation(fields: [attemptId], references: [id])
+  questionId   String
+  question     Question @relation(fields: [questionId], references: [id])
+  userAnswer   String
+  isCorrect    Boolean?
+  pointsEarned Float
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+model ImportJob {
+  id           String       @id @default(cuid())
+  concursoId   String
+  concurso     Concurso     @relation(fields: [concursoId], references: [id])
+  pdfUrl       String
+  gabaritoUrl  String?
+  status       ImportStatus @default(PENDING)
+  rawExtracted Json?
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now()) @updatedAt
+
+  @@index([concursoId])
+  @@index([status])
+}
