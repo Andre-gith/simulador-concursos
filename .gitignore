@@ -38,3 +38,14 @@ Thumbs.db
 
 # Backups locais
 prisma/schema-backup.txt
+
+# Documentos oficiais e intermediários de importação (somente locais)
+/data/imports/
+
+# Arquivos locais do pipeline de PDF e IA
+/uploads/
+/storage/
+/tmp/
+/temp/
+**/intermediario.json
+*.pdf

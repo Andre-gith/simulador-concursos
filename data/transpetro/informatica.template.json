@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "contentNotice": "TEMPLATE NÃO IMPORTÁVEL. Banca, edição, ano e conteúdo pendem de confirmação nos documentos oficiais.",
+  "reviewStatus": "IN_REVIEW",
+  "contest": {
+    "board": null,
+    "agency": "Transpetro",
+    "edition": null,
+    "year": null,
+    "position": null,
+    "specialty": "Informática",
+    "educationLevel": "MEDIO",
+    "officialPageUrl": null,
+    "noticeUrl": null
+  },
+  "paper": {
+    "code": null,
+    "examUrl": null,
+    "answerKeyUrl": null,
+    "appliedAt": null
+  },
+  "scoringRule": null,
+  "blocks": [],
+  "subjects": [],
+  "questions": []
+}

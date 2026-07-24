@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { prisma } from "@/lib/prisma";
 import StartSimuladoForm from "./StartSimuladoForm";
+import { prisma } from "@/lib/prisma";
 
 type ConcursoPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 };
 
 function formatPoints(value: number) {
@@ -16,182 +14,291 @@ function formatPoints(value: number) {
   }).format(value);
 }
 
-export default async function ConcursoPage({
-  params,
-}: ConcursoPageProps) {
-  const { id } = await params;
+function levelLabel(level: string | null) {
+  const levels: Record<string, string> = {
+    FUNDAMENTAL: "Nível fundamental",
+    MEDIO: "Nível médio",
+    TECNICO: "Nível técnico",
+    SUPERIOR: "Nível superior",
+  };
+  return level ? (levels[level] ?? level) : "Não informado";
+}
 
+export default async function ConcursoPage({ params }: ConcursoPageProps) {
+  const { id } = await params;
   const concurso = await prisma.concurso.findFirst({
-    where: {
-      id,
-      status: "PUBLISHED",
-    },
+    where: { id, status: { not: "ARCHIVED" } },
     select: {
       id: true,
       orgao: true,
       cargo: true,
+      especialidade: true,
       ano: true,
+      edicao: true,
+      nivel: true,
+      status: true,
       editalUrl: true,
-      banca: {
-        select: {
-          name: true,
-        },
-      },
+      officialPageUrl: true,
+      banca: { select: { name: true } },
       scoringRule: {
         select: {
           type: true,
           pointsCorrect: true,
           pointsWrong: true,
           pointsBlank: true,
+          floorAtZero: true,
         },
       },
       questions: {
-        where: {
-          status: "PUBLISHED",
-        },
+        where: { status: "PUBLISHED" },
         select: {
-          subject: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          subject: { select: { id: true, name: true } },
+          block: { select: { id: true, name: true, order: true } },
         },
       },
     },
   });
-
-  if (!concurso) {
-    notFound();
-  }
+  if (!concurso) notFound();
 
   const subjectMap = new Map<
     string,
-    {
-      id: string;
-      name: string;
-      questionCount: number;
-    }
+    { id: string; name: string; questionCount: number }
   >();
-
+  const blockMap = new Map<
+    string,
+    { id: string; name: string; order: number; questionCount: number }
+  >();
   for (const question of concurso.questions) {
-    const subject = question.subject;
-    const existingSubject = subjectMap.get(subject.id);
-
+    const existingSubject = subjectMap.get(question.subject.id);
     if (existingSubject) {
       existingSubject.questionCount += 1;
-      continue;
+    } else {
+      subjectMap.set(question.subject.id, {
+        ...question.subject,
+        questionCount: 1,
+      });
     }
-
-    subjectMap.set(subject.id, {
-      id: subject.id,
-      name: subject.name,
-      questionCount: 1,
-    });
+    if (question.block) {
+      const existingBlock = blockMap.get(question.block.id);
+      if (existingBlock) {
+        existingBlock.questionCount += 1;
+      } else {
+        blockMap.set(question.block.id, {
+          ...question.block,
+          questionCount: 1,
+        });
+      }
+    }
   }
 
-  const subjects = Array.from(subjectMap.values()).sort((a, b) =>
+  const subjects = [...subjectMap.values()].sort((a, b) =>
     a.name.localeCompare(b.name, "pt-BR"),
   );
-
+  const blocks = [...blockMap.values()].sort(
+    (a, b) => a.order - b.order || a.name.localeCompare(b.name, "pt-BR"),
+  );
   const totalQuestions = concurso.questions.length;
-
+  const isAvailable =
+    concurso.status === "PUBLISHED" &&
+    concurso.scoringRule !== null &&
+    totalQuestions > 0;
   const scoringDescription =
     concurso.scoringRule?.type === "CE_PENALTY"
-      ? `Cada acerto vale ${formatPoints(
-          concurso.scoringRule.pointsCorrect,
-        )} ponto. Cada erro vale ${formatPoints(
-          concurso.scoringRule.pointsWrong,
-        )} ponto. Questões em branco não descontam.`
+      ? `Certo/Errado: ${formatPoints(concurso.scoringRule.pointsCorrect)} por acerto e ${formatPoints(concurso.scoringRule.pointsWrong)} por erro.`
       : concurso.scoringRule?.type === "MC_NEGATIVE"
-        ? `Questões erradas possuem penalidade de ${formatPoints(
-            concurso.scoringRule.pointsWrong,
-          )} ponto.`
+        ? `Múltipla escolha com ${formatPoints(concurso.scoringRule.pointsCorrect)} por acerto e ${formatPoints(concurso.scoringRule.pointsWrong)} por erro.`
         : concurso.scoringRule
-          ? `Cada acerto vale ${formatPoints(
-              concurso.scoringRule.pointsCorrect,
-            )} ponto. Questões erradas ou em branco não pontuam.`
-          : "A regra de pontuação deste concurso ainda não foi configurada.";
+          ? `Múltipla escolha sem penalidade: ${formatPoints(concurso.scoringRule.pointsCorrect)} por acerto.`
+          : "Regra de pontuação em configuração.";
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-4 py-10">
+    <main className="mx-auto min-h-screen max-w-5xl px-4 py-10">
       <Link
-        href="/"
-        className="mb-8 inline-flex text-sm text-neutral-400 transition-colors hover:text-orange-400"
+        href="/#catalogo"
+        className="mb-8 inline-flex text-sm text-neutral-400 transition hover:text-orange-400"
       >
-        ← Voltar para os concursos
+        ← Voltar ao catálogo
       </Link>
 
       <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 sm:p-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
-            <span className="mb-3 inline-flex rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-400">
-              {concurso.banca.name}
-            </span>
-
-            <h1 className="text-2xl font-semibold text-neutral-100 sm:text-3xl">
+            <p className="text-sm font-semibold uppercase tracking-wider text-orange-400">
               {concurso.orgao}
-            </h1>
-
-            <p className="mt-2 text-lg text-neutral-300">
+            </p>
+            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">
               {concurso.cargo}
-            </p>
-
-            <p className="mt-1 text-sm text-neutral-500">
-              Concurso de {concurso.ano}
-            </p>
+            </h1>
+            {concurso.especialidade && (
+              <p className="mt-2 text-lg text-neutral-300">
+                {concurso.especialidade}
+              </p>
+            )}
           </div>
-
-          <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-5 py-4 text-center">
-            <strong className="block text-2xl text-neutral-100">
-              {totalQuestions}
-            </strong>
-            <span className="text-xs uppercase tracking-wide text-neutral-500">
-              questões disponíveis
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-          <h2 className="font-medium text-neutral-200">
-            Regra de pontuação
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-neutral-400">
-            {scoringDescription}
-          </p>
-        </div>
-
-        {concurso.editalUrl && (
-          <a
-            href={concurso.editalUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-4 inline-flex text-sm text-orange-400 hover:text-orange-300"
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              isAvailable
+                ? "bg-emerald-950 text-emerald-300"
+                : "bg-amber-950 text-amber-300"
+            }`}
           >
-            Consultar edital oficial
-          </a>
-        )}
+            {isAvailable ? "DISPONÍVEL" : concurso.status}
+          </span>
+        </div>
+
+        <dl className="mt-7 grid gap-4 border-y border-neutral-800 py-6 sm:grid-cols-2 lg:grid-cols-4">
+          <Metadata label="Instituição" value={concurso.orgao} />
+          <Metadata label="Banca" value={concurso.banca.name} />
+          <Metadata
+            label="Edição"
+            value={
+              concurso.edicao
+                ? `${concurso.edicao} · ${concurso.ano}`
+                : String(concurso.ano)
+            }
+          />
+          <Metadata label="Nível" value={levelLabel(concurso.nivel)} />
+          <Metadata
+            label="Questões"
+            value={isAvailable ? String(totalQuestions) : "Em revisão"}
+          />
+          <Metadata
+            label="Matérias"
+            value={isAvailable ? String(subjects.length) : "Em revisão"}
+          />
+          <Metadata
+            label="Blocos"
+            value={isAvailable ? String(blocks.length) : "Em revisão"}
+          />
+          <Metadata
+            label="Duração"
+            value={isAvailable ? "Configurável ao iniciar" : "A confirmar"}
+          />
+        </dl>
+
+        <div className="mt-6 flex flex-wrap gap-4 text-sm">
+          {concurso.officialPageUrl && (
+            <a
+              href={concurso.officialPageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-orange-400"
+            >
+              Página oficial
+            </a>
+          )}
+          {concurso.editalUrl && (
+            <a
+              href={concurso.editalUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-orange-400"
+            >
+              Consultar edital
+            </a>
+          )}
+        </div>
       </section>
 
-      <section className="mt-8">
-        {!concurso.scoringRule ? (
-          <div className="rounded-xl border border-red-900 bg-red-950/40 p-5 text-sm text-red-300">
-            Este concurso não pode gerar simulados porque ainda não possui
-            regra de pontuação.
-          </div>
-        ) : totalQuestions === 0 ? (
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-sm text-neutral-400">
-            Este concurso ainda não possui questões publicadas.
-          </div>
-        ) : (
-          <StartSimuladoForm
-            concursoId={concurso.id}
-            totalQuestions={totalQuestions}
-            subjects={subjects}
-          />
-        )}
-      </section>
+      {!isAvailable || !concurso.scoringRule ? (
+        <section className="mt-8 rounded-2xl border border-amber-900 bg-amber-950/30 p-6">
+          <h2 className="text-lg font-semibold text-amber-200">
+            Prova e gabarito em revisão
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-amber-100/70">
+            Este concurso ainda está em preparação. A regra de pontuação, as
+            fontes e as questões precisam concluir a revisão humana antes que
+            um simulado possa ser iniciado.
+          </p>
+          <Link
+            href="/#catalogo"
+            className="mt-5 inline-flex rounded-lg border border-amber-800 px-4 py-2 text-sm font-semibold text-amber-200"
+          >
+            Retornar ao catálogo
+          </Link>
+        </section>
+      ) : (
+        <>
+          <section className="mt-8 grid gap-5 lg:grid-cols-2">
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
+              <h2 className="font-semibold">Regra de pontuação</h2>
+              <p className="mt-3 text-sm leading-6 text-neutral-400">
+                {scoringDescription} Questões em branco valem{" "}
+                {formatPoints(concurso.scoringRule.pointsBlank)} ponto.
+                {concurso.scoringRule.floorAtZero
+                  ? " A nota líquida não fica abaixo de zero."
+                  : " A nota líquida pode ficar abaixo de zero."}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
+              <h2 className="font-semibold">Duração</h2>
+              <p className="mt-3 text-sm leading-6 text-neutral-400">
+                Escolha ao iniciar: sem limite, 15, 30, 60 ou 120 minutos. O
+                servidor controla o tempo a partir do início da tentativa.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 grid gap-5 lg:grid-cols-2">
+            <ListSection
+              title="Matérias"
+              items={subjects.map(
+                (subject) =>
+                  `${subject.name} · ${subject.questionCount} ${
+                    subject.questionCount === 1 ? "questão" : "questões"
+                  }`,
+              )}
+            />
+            <ListSection
+              title="Blocos"
+              items={
+                blocks.length > 0
+                  ? blocks.map(
+                      (block) =>
+                        `${block.name} · ${block.questionCount} ${
+                          block.questionCount === 1 ? "questão" : "questões"
+                        }`,
+                    )
+                  : ["Esta prova não possui blocos configurados."]
+              }
+            />
+          </section>
+
+          <section className="mt-8">
+            <StartSimuladoForm
+              concursoId={concurso.id}
+              totalQuestions={totalQuestions}
+              subjects={subjects}
+            />
+          </section>
+        </>
+      )}
     </main>
+  );
+}
+
+function Metadata({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-wide text-neutral-500">
+        {label}
+      </dt>
+      <dd className="mt-1 font-medium text-neutral-200">{value}</dd>
+    </div>
+  );
+}
+
+function ListSection({ title, items }: { title: string; items: string[] }) {
+  return (
+    <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
+      <h2 className="font-semibold">{title}</h2>
+      <ul className="mt-4 space-y-2 text-sm text-neutral-400">
+        {items.map((item) => (
+          <li key={item} className="rounded-lg bg-neutral-900 px-4 py-3">
+            {item}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

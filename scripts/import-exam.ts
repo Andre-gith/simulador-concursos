@@ -8,7 +8,7 @@ import {
   formatImportValidationErrors,
   summarizeExamImport,
   type ExamImportDocument,
-} from "../src/lib/examImportSchema";
+} from "../src/lib/import/exam-schema";
 
 function printUsage() {
   console.log(
@@ -276,6 +276,11 @@ async function main() {
   }
 
   const filePath = resolve(positionalArguments[0]);
+  if (filePath.toLowerCase().endsWith(".template.json")) {
+    throw new Error(
+      "Arquivos .template.json não podem ser importados. Copie o template, preencha todos os campos confirmados pelos documentos oficiais e remova o sufixo .template antes de validar.",
+    );
+  }
   const rawDocument = await readDocument(filePath);
   const validation = examImportSchema.safeParse(rawDocument);
 

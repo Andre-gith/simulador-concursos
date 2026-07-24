@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "contentNotice": "TEMPLATE NÃO IMPORTÁVEL. Banca, nível, edição, ano e demais dados pendem de confirmação nos documentos oficiais.",
+  "reviewStatus": "IN_REVIEW",
+  "contest": {
+    "board": null,
+    "agency": "Dataprev",
+    "edition": null,
+    "year": null,
+    "position": "Desenvolvimento de Software",
+    "specialty": null,
+    "educationLevel": null,
+    "officialPageUrl": null,
+    "noticeUrl": null
+  },
+  "paper": {
+    "code": null,
+    "examUrl": null,
+    "answerKeyUrl": null,
+    "appliedAt": null
+  },
+  "scoringRule": null,
+  "blocks": [],
+  "subjects": [],
+  "questions": []
+}

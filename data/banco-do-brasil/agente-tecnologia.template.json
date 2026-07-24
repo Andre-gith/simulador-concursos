@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "contentNotice": "TEMPLATE NÃO IMPORTÁVEL. Preencher somente com dados confirmados nos PDFs oficiais da prova e do gabarito.",
+  "reviewStatus": "IN_REVIEW",
+  "contest": {
+    "board": "CESGRANRIO",
+    "agency": "Banco do Brasil",
+    "edition": null,
+    "year": null,
+    "position": "Escriturário",
+    "specialty": "Agente de Tecnologia",
+    "educationLevel": "MEDIO",
+    "officialPageUrl": null,
+    "noticeUrl": null
+  },
+  "paper": {
+    "code": null,
+    "examUrl": null,
+    "answerKeyUrl": null,
+    "appliedAt": null
+  },
+  "scoringRule": null,
+  "blocks": [],
+  "subjects": [],
+  "questions": []
+}

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Simulador de Concursos — Pontuação Real da Banca",
+  title: "Nota de Banca — Pontuação real da sua prova",
   description:
-    "Treine com a regra de pontuação exata da sua banca: Cebraspe, Cesgranrio, FGV.",
+    "Treine concursos com penalidades, pesos e regras de pontuação configuradas para cada prova.",
 };
 
 export default function RootLayout({

@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "catalog:seed": "tsx scripts/seed-catalog.ts",
     "db:generate": "prisma generate",
     "import:exam": "tsx scripts/import-exam.ts"
   },

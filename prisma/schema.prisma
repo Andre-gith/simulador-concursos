@@ -51,11 +51,35 @@ enum UserRole {
 }
 
 model Banca {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  concursos Concurso[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @default(now()) @updatedAt
+  id             String                  @id @default(cuid())
+  name           String                  @unique
+  concursos      Concurso[]
+  catalogEntries EditorialCatalogEntry[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @default(now()) @updatedAt
+}
+
+/// Metadados de oportunidades ainda sem edital/prova suficientemente
+/// confirmados para criar um Concurso. Nunca contém questões.
+model EditorialCatalogEntry {
+  id            String            @id @default(cuid())
+  catalogKey    String            @unique
+  bancaId       String?
+  banca         Banca?            @relation(fields: [bancaId], references: [id])
+  orgao         String
+  title         String
+  cargo         String?
+  especialidade String?
+  ano           Int?
+  edicao        String?
+  nivel         EducationLevel?
+  status        PublicationStatus @default(IN_REVIEW)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now()) @updatedAt
+
+  @@index([bancaId])
+  @@index([orgao])
+  @@index([status])
 }
 
 model Concurso {
