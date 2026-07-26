@@ -176,7 +176,7 @@ export default function SimuladoClient({
   if (!currentQuestion) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-6 text-neutral-300">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
           Este simulado não possui questões.
         </div>
       </main>
@@ -186,15 +186,15 @@ export default function SimuladoClient({
   const selectedAnswer = answers[currentQuestion.id] ?? "";
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 py-8">
-      <header className="mb-6 rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <header className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
               Simulado em andamento
             </p>
 
-            <h1 className="mt-1 text-xl font-semibold text-neutral-100">
+            <h1 className="mt-1 text-xl font-black text-slate-950">
               {title}
             </h1>
           </div>
@@ -202,8 +202,8 @@ export default function SimuladoClient({
             <div
               className={
                 remainingSeconds <= 300
-                  ? "font-semibold text-red-400"
-                  : "text-neutral-300"
+                  ? "rounded-full bg-red-50 px-3 py-2 font-bold text-red-700"
+                  : "rounded-full bg-emerald-50 px-3 py-2 font-semibold text-emerald-800"
               }
             >
               Tempo restante:{" "}
@@ -215,19 +215,19 @@ export default function SimuladoClient({
             </div>
           )}
 
-          <div className="text-sm text-neutral-400">
-            <strong className="text-neutral-100">
+          <div className="text-sm text-slate-600">
+            <strong className="text-slate-950">
               {answeredCount}
             </strong>{" "}
             respondidas ·{" "}
-            <strong className="text-neutral-100">{blankCount}</strong>{" "}
+            <strong className="text-slate-950">{blankCount}</strong>{" "}
             em branco
           </div>
         </div>
 
-        <div className="mt-5 h-2 overflow-hidden rounded-full bg-neutral-800">
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
           <div
-            className="h-full rounded-full bg-orange-500 transition-all"
+            className="h-full rounded-full bg-emerald-800 transition-all"
             style={{
               width: `${
                 ((currentIndex + 1) / questions.length) * 100
@@ -238,13 +238,13 @@ export default function SimuladoClient({
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_240px]">
-        <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 sm:p-8">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm font-semibold text-orange-400">
+            <span className="text-sm font-bold text-emerald-800">
               Questão {currentIndex + 1} de {questions.length}
             </span>
 
-            <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs text-neutral-400">
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
               {currentQuestion.subject}
               {currentQuestion.topic
                 ? ` · ${currentQuestion.topic}`
@@ -252,7 +252,7 @@ export default function SimuladoClient({
             </span>
           </div>
 
-          <p className="mt-7 whitespace-pre-line text-base leading-8 text-neutral-200">
+          <p className="mt-7 whitespace-pre-line text-base leading-8 text-slate-800">
             {currentQuestion.statement}
           </p>
 
@@ -303,11 +303,11 @@ export default function SimuladoClient({
               }
               className={`w-full rounded-xl border px-4 py-4 text-left transition-colors ${
                 selectedAnswer === ""
-                  ? "border-neutral-500 bg-neutral-800 text-neutral-200"
-                  : "border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-600"
+                  ? "border-amber-400 bg-amber-50 text-slate-900"
+                  : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-400"
               }`}
             >
-              <span className="mr-3 inline-flex min-w-8 justify-center rounded-md border border-neutral-600 px-2 py-1 text-xs font-semibold">
+              <span className="mr-3 inline-flex min-w-8 justify-center rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold">
                 —
               </span>
               Deixar em branco
@@ -315,7 +315,7 @@ export default function SimuladoClient({
           </div>
 
           {error && (
-            <div className="mt-6 rounded-xl border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -325,7 +325,7 @@ export default function SimuladoClient({
               type="button"
               disabled={currentIndex === 0}
               onClick={() => goToQuestion(currentIndex - 1)}
-              className="rounded-xl border border-neutral-700 px-5 py-3 text-sm font-medium text-neutral-300 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:border-emerald-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Questão anterior
             </button>
@@ -334,7 +334,7 @@ export default function SimuladoClient({
               <button
                 type="button"
                 onClick={() => goToQuestion(currentIndex + 1)}
-                className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-neutral-950 hover:bg-orange-400"
+                className="rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300"
               >
                 Próxima questão
               </button>
@@ -343,7 +343,7 @@ export default function SimuladoClient({
                 type="button"
                 disabled={isFinishing}
                 onClick={() => void finishAttempt()}
-                className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-neutral-950 hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isFinishing
                   ? "Calculando resultado..."
@@ -353,8 +353,8 @@ export default function SimuladoClient({
           </div>
         </section>
 
-        <aside className="h-fit rounded-2xl border border-neutral-800 bg-neutral-950 p-5 lg:sticky lg:top-6">
-          <h2 className="text-sm font-semibold text-neutral-200">
+        <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
+          <h2 className="text-sm font-bold text-slate-950">
             Navegação
           </h2>
 
@@ -370,10 +370,10 @@ export default function SimuladoClient({
                   onClick={() => goToQuestion(index)}
                   className={`aspect-square rounded-lg text-xs font-semibold transition-colors ${
                     isCurrent
-                      ? "bg-orange-500 text-neutral-950"
+                      ? "bg-amber-400 text-slate-950"
                       : isAnswered
-                        ? "bg-neutral-700 text-neutral-100 hover:bg-neutral-600"
-                        : "border border-neutral-800 bg-neutral-900 text-neutral-500 hover:border-neutral-600"
+                        ? "bg-emerald-800 text-white hover:bg-emerald-700"
+                        : "border border-slate-200 bg-slate-50 text-slate-500 hover:border-emerald-500"
                   }`}
                 >
                   {index + 1}
@@ -386,7 +386,7 @@ export default function SimuladoClient({
             type="button"
             disabled={isFinishing}
             onClick={() => void finishAttempt()}
-            className="mt-6 w-full rounded-xl border border-orange-500 px-4 py-3 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-6 w-full rounded-xl border border-emerald-800 px-4 py-3 text-sm font-bold text-emerald-800 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Finalizar agora
           </button>
@@ -416,15 +416,15 @@ function AnswerButton({
       onClick={onClick}
       className={`flex w-full items-start rounded-xl border px-4 py-4 text-left transition-colors ${
         selected
-          ? "border-orange-500 bg-orange-500/10 text-neutral-100"
-          : "border-neutral-800 bg-neutral-900 text-neutral-300 hover:border-neutral-600"
+          ? "border-emerald-700 bg-emerald-50 text-slate-950"
+          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-400"
       }`}
     >
       <span
         className={`mr-3 inline-flex min-w-8 justify-center rounded-md border px-2 py-1 text-xs font-semibold ${
           selected
-            ? "border-orange-500 text-orange-400"
-            : "border-neutral-700 text-neutral-400"
+            ? "border-emerald-700 bg-emerald-800 text-white"
+            : "border-slate-300 text-slate-600"
         }`}
       >
         {value}

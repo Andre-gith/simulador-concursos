@@ -109,8 +109,16 @@ describe("pipeline de importação oficial", () => {
 
   it("rejeita documento estruturado sem referência de gabarito", () => {
     const document = validAiDocument();
-    delete document.paper.answerKeyUrl;
-    expect(officialExamImportSchema.safeParse(document).success).toBe(false);
+    const { answerKeyUrl: _answerKeyUrl, ...paperWithoutAnswerKey } =
+      document.paper;
+    const documentWithoutAnswerKey = {
+      ...document,
+      paper: paperWithoutAnswerKey,
+    };
+
+    expect(
+      officialExamImportSchema.safeParse(documentWithoutAnswerKey).success,
+    ).toBe(false);
   });
 
   it("rejeita números de questões duplicados", async () => {

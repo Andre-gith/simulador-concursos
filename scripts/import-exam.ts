@@ -6,9 +6,9 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import {
   examImportSchema,
   formatImportValidationErrors,
-  summarizeExamImport,
   type ExamImportDocument,
 } from "../src/lib/import/exam-schema";
+import { executeExamImport } from "../src/lib/import/exam-import-runner";
 
 function printUsage() {
   console.log(
@@ -61,6 +61,15 @@ async function importDocument(
         especialidade: document.contest.specialty ?? null,
       },
     });
+
+    if (
+      existingConcurso?.status === "PUBLISHED" ||
+      existingConcurso?.status === "ARCHIVED"
+    ) {
+      throw new Error(
+        `O concurso existente está ${existingConcurso.status} e não pode ser sobrescrito pelo importador.`,
+      );
+    }
 
     const concursoData = {
       bancaId: banca.id,
@@ -176,6 +185,8 @@ async function importDocument(
 
     let createdQuestions = 0;
     let updatedQuestions = 0;
+    let unchangedQuestions = 0;
+    let preservedReviewedQuestions = 0;
 
     for (const question of document.questions) {
       const subjectId = subjectIds.get(question.subject);
@@ -195,6 +206,10 @@ async function importDocument(
               letter: alternative.letter.toUpperCase(),
               text: alternative.text,
               isCorrect: alternative.isCorrect,
+              isVisual: alternative.isVisual,
+              visualAssetPath: alternative.visualAssetPath ?? null,
+              visualDescription: alternative.visualDescription ?? null,
+              sourcePage: alternative.sourcePage ?? null,
             }))
           : [];
 
@@ -211,6 +226,12 @@ async function importDocument(
         weight: question.weight,
         sourceUrl: question.sourceUrl ?? null,
         sourcePage: question.sourcePage ?? null,
+        requiresVisualReview: question.requiresVisualReview,
+        visualReviewResolved: false,
+        textReviewed: false,
+        alternativesReviewed: false,
+        answerKeyReviewed: false,
+        annulmentStatus: "PENDING" as const,
         status: "IN_REVIEW" as const,
       };
 
@@ -219,10 +240,67 @@ async function importDocument(
           paperId: paper.id,
           number: question.number,
         },
-        select: { id: true },
+        include: {
+          alternatives: { orderBy: { letter: "asc" } },
+        },
       });
 
       if (existingQuestion) {
+        const hasEditorialProgress =
+          existingQuestion.status !== "IN_REVIEW" ||
+          existingQuestion.textReviewed ||
+          existingQuestion.alternativesReviewed ||
+          existingQuestion.answerKeyReviewed ||
+          existingQuestion.visualReviewResolved ||
+          existingQuestion.annulmentStatus !== "PENDING" ||
+          existingQuestion.reviewedAt !== null;
+
+        const sortedAlternatives = [...alternatives].sort((left, right) =>
+          left.letter.localeCompare(right.letter),
+        );
+        const isUnchanged =
+          existingQuestion.concursoId === questionData.concursoId &&
+          existingQuestion.paperId === questionData.paperId &&
+          existingQuestion.blockId === questionData.blockId &&
+          existingQuestion.subjectId === questionData.subjectId &&
+          existingQuestion.topicId === questionData.topicId &&
+          existingQuestion.number === questionData.number &&
+          existingQuestion.type === questionData.type &&
+          existingQuestion.statement === questionData.statement &&
+          existingQuestion.ceAnswer === questionData.ceAnswer &&
+          existingQuestion.weight === questionData.weight &&
+          existingQuestion.sourceUrl === questionData.sourceUrl &&
+          existingQuestion.sourcePage === questionData.sourcePage &&
+          existingQuestion.requiresVisualReview ===
+            questionData.requiresVisualReview &&
+          existingQuestion.alternatives.length === sortedAlternatives.length &&
+          existingQuestion.alternatives.every((current, index) => {
+            const expected = sortedAlternatives[index];
+            return (
+              expected !== undefined &&
+              current.letter === expected.letter &&
+              current.text === expected.text &&
+              current.isCorrect === expected.isCorrect &&
+              current.isVisual === expected.isVisual &&
+              current.visualAssetPath === expected.visualAssetPath &&
+              current.visualDescription === expected.visualDescription &&
+              current.sourcePage === expected.sourcePage
+            );
+          });
+
+        if (isUnchanged) {
+          unchangedQuestions += 1;
+          continue;
+        }
+
+        if (hasEditorialProgress) {
+          preservedReviewedQuestions += 1;
+          console.warn(
+            `Questão ${question.number} preservada: há revisão editorial ou status posterior à importação.`,
+          );
+          continue;
+        }
+
         await transaction.alternative.deleteMany({
           where: { questionId: existingQuestion.id },
         });
@@ -256,6 +334,8 @@ async function importDocument(
       paperId: paper.id,
       createdQuestions,
       updatedQuestions,
+      unchangedQuestions,
+      preservedReviewedQuestions,
     };
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -293,23 +373,28 @@ async function main() {
     return;
   }
 
-  const summary = summarizeExamImport(validation.data);
-  console.log(dryRun ? "Resumo do dry-run:" : "Resumo validado:");
-  console.table(summary);
+  const execution = await executeExamImport(validation.data, {
+    dryRun,
+    async persist(document) {
+      const prisma = new PrismaClient();
+      try {
+        return await importDocument(prisma, document);
+      } finally {
+        await prisma.$disconnect();
+      }
+    },
+  });
 
-  if (dryRun) {
+  console.log(dryRun ? "Resumo do dry-run:" : "Resumo validado:");
+  console.table(execution.summary);
+
+  if (execution.kind === "dry-run") {
     console.log("Dry-run concluído. Nenhum dado foi gravado.");
     return;
   }
 
-  const prisma = new PrismaClient();
-  try {
-    const result = await importDocument(prisma, validation.data);
-    console.log("Importação concluída em uma transação.");
-    console.table(result);
-  } finally {
-    await prisma.$disconnect();
-  }
+  console.log("Importação concluída em uma transação.");
+  console.table(execution.result);
 }
 
 main().catch((error) => {

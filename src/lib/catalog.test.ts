@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   filterCatalog,
+  hasSameCatalogIdentity,
   isAvailableContest,
   isPreparingContest,
   type CatalogContest,
@@ -76,5 +77,28 @@ describe("catálogo da home", () => {
     expect(
       isPreparingContest(contest({ publishedQuestionCount: 0 })),
     ).toBe(true);
+  });
+
+  it("reconhece a mesma entrada editorial sem misturar especialidades", () => {
+    const technology = {
+      institution: " Banco do Brasil ",
+      position: "Escriturário",
+      specialty: "Agente de Tecnologia",
+    };
+
+    expect(
+      hasSameCatalogIdentity(technology, {
+        institution: "banco do brasil",
+        position: "Escriturário",
+        specialty: "Agente de Tecnologia",
+      }),
+    ).toBe(true);
+    expect(
+      hasSameCatalogIdentity(technology, {
+        institution: "Banco do Brasil",
+        position: "Escriturário",
+        specialty: "Agente Comercial",
+      }),
+    ).toBe(false);
   });
 });

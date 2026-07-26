@@ -5,6 +5,38 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 
+export async function authorizeCredentials(credentials: unknown) {
+  const parsed = z
+    .object({
+      email: z.string().email().transform((value) => value.toLowerCase()),
+      password: z.string().min(8),
+    })
+    .safeParse(credentials);
+  if (!parsed.success) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { email: parsed.data.email },
+  });
+  if (!user || !user.passwordHash) {
+    return null;
+  }
+
+  const passwordIsValid = await verifyPassword(
+    parsed.data.password,
+    user.passwordHash,
+  );
+
+  if (!passwordIsValid) {
+    return null;
+  }
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+  };
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -14,31 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "E-mail", type: "email" },
         password: { label: "Senha", type: "password" },
       },
-      async authorize(credentials) {
-        const parsed = z
-          .object({
-            email: z.string().email().transform((value) => value.toLowerCase()),
-            password: z.string().min(8),
-          })
-          .safeParse(credentials);
-        if (!parsed.success) return null;
-
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
-        });
-        if (
-          !user?.passwordHash ||
-          !(await verifyPassword(parsed.data.password, user.passwordHash))
-        ) {
-          return null;
-        }
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
-      },
+      authorize: authorizeCredentials,
     }),
   ],
   callbacks: {
@@ -50,8 +58,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
+      if (
+        session.user &&
+        typeof token.userId === "string" &&
+        token.userId.trim().length > 0
+      ) {
+        session.user.id = token.userId;
+      }
       if (session.user) {
-        session.user.id = String(token.userId);
         session.user.role = token.role === "ADMIN" ? "ADMIN" : "USER";
       }
       return session;

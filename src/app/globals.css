@@ -31,3 +31,87 @@ html {
   background: #171717;
   padding: 0.75rem;
 }
+
+.admin-surface {
+  background: #f6f4ed;
+  color: #0f172a;
+}
+
+.admin-surface .input {
+  min-height: 3rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+}
+
+.admin-surface .input:focus {
+  border-color: #047857;
+  box-shadow: 0 0 0 3px #d1fae5;
+}
+
+.admin-surface .bg-neutral-950,
+.admin-surface .bg-neutral-900 {
+  background-color: #ffffff;
+}
+
+.admin-surface .bg-neutral-800 {
+  background-color: #f1f5f9;
+}
+
+.admin-surface .border-neutral-900,
+.admin-surface .border-neutral-800,
+.admin-surface .border-neutral-700 {
+  border-color: #e2e8f0;
+}
+
+.admin-surface .text-neutral-100,
+.admin-surface .text-neutral-200 {
+  color: #0f172a;
+}
+
+.admin-surface .text-neutral-300,
+.admin-surface .text-neutral-400 {
+  color: #475569;
+}
+
+.admin-surface .text-neutral-500 {
+  color: #64748b;
+}
+
+.admin-surface .text-orange-400 {
+  color: #047857;
+}
+
+.admin-surface .bg-orange-500 {
+  background-color: #fbbf24;
+}
+
+.admin-surface .hover\:bg-orange-400:hover {
+  background-color: #fcd34d;
+}
+
+.admin-surface .bg-amber-950\/20,
+.admin-surface .bg-amber-950\/30 {
+  background-color: #fffbeb;
+}
+
+.admin-surface .border-amber-900 {
+  border-color: #fcd34d;
+}
+
+.admin-surface table {
+  background: #ffffff;
+}
+
+.admin-surface thead {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.admin-surface section,
+.admin-surface article,
+.admin-surface form {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}

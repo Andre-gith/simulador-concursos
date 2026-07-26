@@ -40,6 +40,26 @@ export type CatalogFilter =
   | "mid-level"
   | "higher-level";
 
+type CatalogIdentity = {
+  institution: string;
+  position: string | null;
+  specialty: string | null;
+};
+
+export function hasSameCatalogIdentity(
+  left: CatalogIdentity,
+  right: CatalogIdentity,
+) {
+  const identityPart = (value: string | null) =>
+    (value ?? "").normalize("NFC").trim().toLocaleLowerCase("pt-BR");
+
+  return (
+    identityPart(left.institution) === identityPart(right.institution) &&
+    identityPart(left.position) === identityPart(right.position) &&
+    identityPart(left.specialty) === identityPart(right.specialty)
+  );
+}
+
 export function isAvailableContest(contest: CatalogContest) {
   return (
     contest.status === "PUBLISHED" &&

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAttemptTiming } from "@/lib/attemptTiming";
 import { auth } from "@/auth";
+import { AppShell } from "@/components/layout/AppShell";
 import SimuladoClient, {
   type SimuladoQuestion,
 } from "./SimuladoClient";
@@ -106,6 +107,10 @@ export default async function SimuladoPage({
   );
 
   return (
+    <AppShell
+      isAuthenticated
+      isAdmin={session.user.role === "ADMIN"}
+    >
     <SimuladoClient
       attemptId={attempt.id}
       title={attempt.simulatedExam.title}
@@ -113,5 +118,6 @@ export default async function SimuladoPage({
       serverNow={serverNow.toISOString()}
       expiresAt={timing.expiresAt?.toISOString() ?? null}
     />
+    </AppShell>
   );
 }

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { calculateResultMetrics } from "@/lib/resultMetrics";
 import { auth } from "@/auth";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const dynamic = "force-dynamic";
 
@@ -145,27 +146,28 @@ export default async function ResultadoPage({
   );
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 py-10">
-      <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 sm:p-8">
+    <AppShell isAuthenticated isAdmin={session.user.role === "ADMIN"}>
+    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
               Resultado do simulado
             </p>
-            <h1 className="mt-2 text-2xl font-semibold text-neutral-100">
+            <h1 className="mt-2 text-3xl font-black text-slate-950">
               {attempt.simulatedExam.title}
             </h1>
             {concurso && (
-              <p className="mt-2 text-sm text-neutral-400">
+              <p className="mt-2 text-sm text-slate-600">
                 {concurso.banca.name} · {concurso.ano}
               </p>
             )}
           </div>
-          <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 px-7 py-5 text-center">
-            <strong className="block text-4xl text-orange-400">
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 px-7 py-5 text-center">
+            <strong className="block text-4xl text-emerald-900">
               {formatNumber(totalScore)}
             </strong>
-            <span className="mt-1 block text-xs uppercase tracking-wide text-neutral-400">
+            <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
               Nota líquida
             </span>
           </div>
@@ -218,13 +220,13 @@ export default async function ResultadoPage({
           />
         </div>
 
-        <p className="mt-6 rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 text-sm leading-6 text-neutral-400">
+        <p className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
           A taxa de acerto considera questões corretas sobre o total. O
           percentual da pontuação máxima compara a nota líquida com o máximo
           ponderado. Penalidades podem reduzir a nota líquida sem alterar a
           taxa de acerto.
         </p>
-        <p className="mt-3 text-sm text-neutral-500">
+        <p className="mt-3 text-sm text-slate-500">
           Finalização:{" "}
           {attempt.finishReason === "TIME_EXPIRED"
             ? "tempo esgotado"
@@ -232,11 +234,11 @@ export default async function ResultadoPage({
         </p>
 
         <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-          <Link href="/" className="rounded-xl border border-neutral-700 px-5 py-3 text-center text-sm text-neutral-300">
+          <Link href="/" className="rounded-xl border border-slate-300 px-5 py-3 text-center text-sm font-bold text-slate-700">
             Voltar ao início
           </Link>
           {concurso && (
-            <Link href={`/concursos/${concurso.id}`} className="rounded-xl bg-orange-500 px-5 py-3 text-center text-sm font-semibold text-neutral-950">
+            <Link href={`/concursos/${concurso.id}`} className="rounded-xl bg-amber-400 px-5 py-3 text-center text-sm font-bold text-slate-950 hover:bg-amber-300">
               Fazer novo simulado
             </Link>
           )}
@@ -244,12 +246,12 @@ export default async function ResultadoPage({
       </section>
 
       <section className="mt-8">
-        <h2 className="text-xl font-semibold">Desempenho por matéria</h2>
-        <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-800">
+        <h2 className="text-2xl font-black text-slate-950">Desempenho por matéria</h2>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {metrics.subjects.map((subject) => (
-            <article key={subject.id} className="border-b border-neutral-800 bg-neutral-950 p-5 last:border-0">
-              <h3 className="font-medium">{subject.name}</h3>
-              <div className="mt-3 grid gap-2 text-sm text-neutral-400 sm:grid-cols-4">
+            <article key={subject.id} className="border-b border-slate-200 p-5 last:border-0">
+              <h3 className="font-bold text-emerald-900">{subject.name}</h3>
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-4">
                 <Metric label="Questões" value={formatNumber(subject.total)} />
                 <Metric label="Acertos" value={formatNumber(subject.correct)} />
                 <Metric label="Erros" value={formatNumber(subject.wrong)} />
@@ -265,23 +267,23 @@ export default async function ResultadoPage({
 
       {metrics.blocks.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-xl font-semibold">Desempenho por bloco</h2>
-          <p className="mt-2 text-sm text-neutral-500">
+          <h2 className="text-2xl font-black text-slate-950">Desempenho por bloco</h2>
+          <p className="mt-2 text-sm text-slate-600">
             O atendimento destes mínimos não representa aprovação definitiva
             enquanto todas as regras eliminatórias do edital não estiverem
             configuradas.
           </p>
           <div className="mt-4 space-y-4">
             {metrics.blocks.map((block) => (
-              <article key={block.id} className="rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
+              <article key={block.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
                   <h3 className="font-medium">{block.name}</h3>
                   <span className={
                     !block.hasConfiguredMinimums
-                      ? "text-neutral-500"
+                      ? "text-slate-500"
                       : block.meetsConfiguredMinimums
-                        ? "text-green-400"
-                        : "text-red-400"
+                        ? "rounded-full bg-emerald-50 px-3 py-1 text-emerald-800"
+                        : "rounded-full bg-red-50 px-3 py-1 text-red-700"
                   }>
                     {!block.hasConfiguredMinimums
                       ? "Sem mínimos configurados"
@@ -290,7 +292,7 @@ export default async function ResultadoPage({
                         : "Mínimo configurado não atingido"}
                   </span>
                 </div>
-                <div className="mt-3 grid gap-2 text-sm text-neutral-400 sm:grid-cols-3">
+                <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
                   <Metric label="Questões" value={formatNumber(block.total)} />
                   <Metric label="Nota obtida" value={formatNumber(block.netScore)} />
                   <Metric label="Nota máxima" value={formatNumber(block.maximumScore)} />
@@ -304,7 +306,7 @@ export default async function ResultadoPage({
       )}
 
       <section className="mt-8">
-        <h2 className="text-xl font-semibold">Correção detalhada</h2>
+        <h2 className="text-2xl font-black text-slate-950">Correção detalhada</h2>
         <div className="mt-4 space-y-4">
           {attempt.simulatedExam.questions.map((item, index) => {
             const question = item.question;
@@ -329,24 +331,30 @@ export default async function ResultadoPage({
                   : "Incorreta";
 
             return (
-              <article key={question.id} className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
+              <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
-                    <strong className="text-orange-400">
+                    <strong className="text-emerald-800">
                       Questão {question.number ?? index + 1}
                     </strong>
-                    <p className="mt-1 text-xs text-neutral-500">
+                    <p className="mt-1 text-xs text-slate-500">
                       {question.subject.name}
                       {question.topic ? ` · ${question.topic.name}` : ""}
                       {question.block ? ` · ${question.block.name}` : ""}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold">{status}</span>
+                  <span className={`rounded-full px-3 py-1 text-sm font-bold ${
+                    status === "Correta"
+                      ? "bg-emerald-50 text-emerald-800"
+                      : status === "Incorreta"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-amber-100 text-amber-900"
+                  }`}>{status}</span>
                 </div>
-                <p className="mt-5 whitespace-pre-line leading-7 text-neutral-200">
+                <p className="mt-5 whitespace-pre-line leading-7 text-slate-800">
                   {question.statement}
                 </p>
-                <div className="mt-5 grid gap-3 rounded-xl bg-neutral-900 p-4 text-sm sm:grid-cols-4">
+                <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-4">
                   <Metric label="Sua resposta" value={userAnswer === "" ? "Em branco" : question.type === "CE" ? userAnswer === "C" ? "Certo" : "Errado" : userAnswer} />
                   <Metric label="Gabarito" value={correctAnswer} />
                   <Metric label="Peso" value={formatNumber(question.weight)} />
@@ -358,14 +366,15 @@ export default async function ResultadoPage({
         </div>
       </section>
     </main>
+    </AppShell>
   );
 }
 
 function ResultCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <strong className="block text-xl">{value}</strong>
-      <span className="mt-1 block text-xs text-neutral-500">{label}</span>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <strong className="block text-xl text-slate-950">{value}</strong>
+      <span className="mt-1 block text-xs text-slate-500">{label}</span>
     </div>
   );
 }
@@ -373,8 +382,8 @@ function ResultCard({ label, value }: { label: string; value: string }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="block text-xs text-neutral-500">{label}</span>
-      <strong className="mt-1 block text-neutral-200">{value}</strong>
+      <span className="block text-xs text-slate-500">{label}</span>
+      <strong className="mt-1 block text-slate-950">{value}</strong>
     </div>
   );
 }

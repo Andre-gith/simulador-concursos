@@ -127,4 +127,63 @@ describe("examImportSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("mantém texto obrigatório em alternativas comuns", () => {
+    const document = validDocument();
+    const question = document.questions[0];
+    if ("alternatives" in question) {
+      question.alternatives![0].text = "";
+    }
+    expect(examImportSchema.safeParse(document).success).toBe(false);
+  });
+
+  it("rejeita alternativa visual sem recurso e página", () => {
+    const document = validDocument();
+    const question = document.questions[0];
+    Object.assign(question, { requiresVisualReview: true });
+    if ("alternatives" in question) {
+      Object.assign(question.alternatives![0], { isVisual: true });
+    }
+    expect(examImportSchema.safeParse(document).success).toBe(false);
+  });
+
+  it("rejeita alternativa visual em questão sem revisão visual", () => {
+    const document = validDocument();
+    const question = document.questions[0];
+    if ("alternatives" in question) {
+      Object.assign(question.alternatives![0], {
+        isVisual: true,
+        visualAssetPath: "data/imports/exemplo/alternativa-a.png",
+        sourcePage: 2,
+      });
+    }
+    expect(examImportSchema.safeParse(document).success).toBe(false);
+  });
+
+  it("aceita alternativas visuais referenciadas somente em revisão", () => {
+    const document = validDocument();
+    const question = document.questions[0];
+    Object.assign(question, { requiresVisualReview: true });
+    if ("alternatives" in question) {
+      question.alternatives!.forEach((alternative, index) => {
+        Object.assign(alternative, {
+          isVisual: true,
+          visualAssetPath: `data/imports/exemplo/alternativa-${index}.png`,
+          sourcePage: 2,
+        });
+      });
+    }
+
+    const parsed = examImportSchema.parse(document);
+    const parsedQuestion = parsed.questions[0];
+    expect(parsed.reviewStatus).toBe("IN_REVIEW");
+    expect(parsedQuestion.requiresVisualReview).toBe(true);
+    if (parsedQuestion.type !== "MC") {
+      throw new Error("Questão MC esperada.");
+    }
+    expect(parsedQuestion.alternatives.map(({ letter }) => letter)).toEqual([
+      "A",
+      "B",
+    ]);
+  });
 });

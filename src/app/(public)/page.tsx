@@ -9,6 +9,7 @@ import { EducationalContent } from "@/components/home/EducationalContent";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import {
   filterCatalog,
+  hasSameCatalogIdentity,
   isAvailableContest,
   isPreparingContest,
   parseCatalogFilter,
@@ -75,6 +76,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           id: true,
           orgao: true,
           title: true,
+          cargo: true,
+          especialidade: true,
           ano: true,
           edicao: true,
           nivel: true,
@@ -108,11 +111,30 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       pointsWrong: contest.scoringRule?.pointsWrong ?? null,
       floorAtZero: contest.scoringRule?.floorAtZero ?? null,
     })),
-    ...editorialEntries.map((entry) => ({
+    ...editorialEntries
+      .filter(
+        (entry) =>
+          !contestsFromDatabase.some(
+            (contest) =>
+              hasSameCatalogIdentity(
+                {
+                  institution: contest.orgao,
+                  position: contest.cargo,
+                  specialty: contest.especialidade,
+                },
+                {
+                  institution: entry.orgao,
+                  position: entry.cargo,
+                  specialty: entry.especialidade,
+                },
+              ),
+          ),
+      )
+      .map((entry) => ({
       id: `editorial-${entry.id}`,
       institution: entry.orgao,
-      position: entry.title,
-      specialty: null,
+      position: entry.cargo ?? entry.title,
+      specialty: entry.especialidade,
       board: entry.banca?.name ?? "Banca a confirmar",
       edition: entry.edicao,
       year: entry.ano,
@@ -125,7 +147,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       pointsCorrect: null,
       pointsWrong: null,
       floorAtZero: null,
-    })),
+      })),
   ];
 
   const query = firstQueryValue(params.q).trim().slice(0, 120);

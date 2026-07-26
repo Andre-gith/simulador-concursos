@@ -91,6 +91,15 @@ const catalog: CatalogSeed[] = [
     nivel: EducationLevel.MEDIO,
   },
   {
+    catalogKey: "banco-do-brasil-escriturario-agente-comercial",
+    orgao: "Banco do Brasil",
+    title: "Escriturário — Agente Comercial",
+    cargo: "Escriturário",
+    especialidade: "Agente Comercial",
+    banca: "CESGRANRIO",
+    nivel: EducationLevel.MEDIO,
+  },
+  {
     catalogKey: "caixa-tecnico-bancario-novo-ti",
     orgao: "Caixa Econômica Federal",
     title: "Técnico Bancário Novo — Tecnologia da Informação",

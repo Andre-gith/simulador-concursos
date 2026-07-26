@@ -3,6 +3,7 @@
 import { Buffer } from "node:buffer";
 
 import {
+  AnnulmentStatus,
   Prisma,
   PublicationStatus,
   type EducationLevel,
@@ -26,6 +27,10 @@ import {
   validateContestForPublication,
   validateQuestionForPublication,
 } from "@/lib/publication";
+import {
+  validateBulkQuestionSelection,
+  type BulkReviewOperation,
+} from "@/lib/publicationWorkflow";
 
 function text(data: FormData, name: string) {
   const value = data.get(name);
@@ -86,6 +91,11 @@ export async function setQuestionStatus(data: FormData) {
         );
       }
       if (status === PublicationStatus.PUBLISHED) {
+        if (question.status !== PublicationStatus.IN_REVIEW) {
+          throw new Error(
+            "Somente uma questão em revisão pode ser publicada.",
+          );
+        }
         const issues = validateQuestionForPublication(question);
         if (issues.length > 0) throw new Error(issues.join(" "));
       }
@@ -93,11 +103,238 @@ export async function setQuestionStatus(data: FormData) {
         where: { id },
         data: {
           status: status as PublicationStatus,
+          publishedAt:
+            status === PublicationStatus.PUBLISHED
+              ? question.publishedAt ?? new Date()
+              : null,
+          reviewedAt:
+            status === PublicationStatus.PUBLISHED
+              ? question.reviewedAt ?? new Date()
+              : question.reviewedAt,
         },
       });
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+  revalidatePath("/admin");
+  revalidatePath(`/admin/questoes/${id}`);
+}
+
+const bulkQuestionActionSchema = z.object({
+  questionIds: z.array(z.string().trim().min(1)).min(1).max(200),
+  operation: z.enum([
+    "TEXT_REVIEWED",
+    "ALTERNATIVES_REVIEWED",
+    "ANSWER_KEY_REVIEWED",
+    "NOT_ANNULLED",
+    "PUBLISH_READY",
+  ]),
+  confirmation: z.literal("CONFIRM"),
+});
+
+export async function bulkReviewQuestions(data: FormData) {
+  await requireAdmin();
+  const validation = bulkQuestionActionSchema.safeParse({
+    questionIds: data
+      .getAll("questionIds")
+      .filter((value): value is string => typeof value === "string"),
+    operation: data.get("operation"),
+    confirmation: data.get("confirmation"),
+  });
+  if (!validation.success) {
+    throw new Error(
+      "Selecione questões e confirme explicitamente a ação em lote.",
+    );
+  }
+  const uniqueIds = [...new Set(validation.data.questionIds)];
+  if (uniqueIds.length !== validation.data.questionIds.length) {
+    throw new Error("A seleção contém questões duplicadas.");
+  }
+
+  await prisma.$transaction(
+    async (transaction) => {
+      const questions = await transaction.question.findMany({
+        where: { id: { in: uniqueIds } },
+        include: { alternatives: true, paper: true },
+      });
+      if (questions.length !== uniqueIds.length) {
+        throw new Error("Uma ou mais questões selecionadas não existem.");
+      }
+      const selectionIssues = validateBulkQuestionSelection(
+        questions,
+        validation.data.operation as BulkReviewOperation,
+      );
+      if (selectionIssues.length > 0) {
+        throw new Error(selectionIssues.join(" "));
+      }
+
+      const operation = validation.data.operation;
+      const now = new Date();
+      if (operation === "PUBLISH_READY") {
+        await transaction.question.updateMany({
+          where: { id: { in: uniqueIds } },
+          data: {
+            status: PublicationStatus.PUBLISHED,
+            publishedAt: now,
+            reviewedAt: now,
+          },
+        });
+      } else {
+        const dataByOperation = {
+          TEXT_REVIEWED: { textReviewed: true },
+          ALTERNATIVES_REVIEWED: { alternativesReviewed: true },
+          ANSWER_KEY_REVIEWED: { answerKeyReviewed: true },
+          NOT_ANNULLED: { annulmentStatus: AnnulmentStatus.NOT_ANNULLED },
+        } as const;
+        await transaction.question.updateMany({
+          where: { id: { in: uniqueIds } },
+          data: dataByOperation[operation],
+        });
+      }
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+
+  revalidatePath("/admin");
+}
+
+const reviewOptionalMetadata = z
+  .string()
+  .trim()
+  .transform((value) => value || null);
+const reviewOptionalUrl = z
+  .string()
+  .trim()
+  .transform((value) => value || null)
+  .refine((value) => value === null || URL.canParse(value), {
+    message: "Informe uma URL absoluta válida.",
+  });
+const questionReviewSchema = z.object({
+  id: z.string().trim().min(1),
+  statement: z.string().trim().min(1, "Informe o enunciado."),
+  subjectId: z.string().trim().min(1, "Selecione a matéria."),
+  topicId: reviewOptionalMetadata,
+  blockId: z.string().trim().min(1, "Selecione o bloco."),
+  paperId: z.string().trim().min(1, "Selecione o caderno."),
+  weight: z.coerce.number().finite().positive("O peso deve ser positivo."),
+  sourceUrl: reviewOptionalUrl,
+  sourcePage: z.coerce.number().int().positive("Informe uma página válida."),
+  extractionNotes: reviewOptionalMetadata,
+  annulmentStatus: z.nativeEnum(AnnulmentStatus),
+});
+
+export async function updateQuestionReview(data: FormData) {
+  await requireAdmin();
+  const validation = questionReviewSchema.safeParse({
+    id: data.get("id"),
+    statement: data.get("statement"),
+    subjectId: data.get("subjectId"),
+    topicId: data.get("topicId"),
+    blockId: data.get("blockId"),
+    paperId: data.get("paperId"),
+    weight: data.get("weight"),
+    sourceUrl: data.get("sourceUrl"),
+    sourcePage: data.get("sourcePage"),
+    extractionNotes: data.get("extractionNotes"),
+    annulmentStatus: data.get("annulmentStatus"),
+  });
+  if (!validation.success) {
+    throw new Error(
+      validation.error.issues.map((issue) => issue.message).join(" "),
+    );
+  }
+
+  const flags = {
+    textReviewed: data.get("textReviewed") === "on",
+    alternativesReviewed: data.get("alternativesReviewed") === "on",
+    answerKeyReviewed: data.get("answerKeyReviewed") === "on",
+    requiresVisualReview: data.get("requiresVisualReview") === "on",
+    visualReviewResolved: data.get("visualReviewResolved") === "on",
+  };
+  const correctAnswer = text(data, "correctAnswer");
+  const { id, ...metadata } = validation.data;
+
+  await prisma.$transaction(
+    async (transaction) => {
+      const question = await transaction.question.findUnique({
+        where: { id },
+        include: { alternatives: true },
+      });
+      if (!question) throw new Error("Questão não encontrada.");
+      if (question.status === PublicationStatus.PUBLISHED) {
+        throw new Error(
+          "Retorne a questão para IN_REVIEW antes de editar seu conteúdo.",
+        );
+      }
+
+      const [subject, block, paper] = await Promise.all([
+        transaction.subject.findUnique({
+          where: { id: metadata.subjectId },
+          select: { id: true },
+        }),
+        transaction.examBlock.findFirst({
+          where: { id: metadata.blockId, concursoId: question.concursoId },
+          select: { id: true },
+        }),
+        transaction.examPaper.findFirst({
+          where: { id: metadata.paperId, concursoId: question.concursoId },
+          select: { id: true },
+        }),
+      ]);
+      if (!subject) throw new Error("Matéria inválida.");
+      if (!block) throw new Error("Bloco não pertence ao concurso.");
+      if (!paper) throw new Error("Caderno não pertence ao concurso.");
+      if (metadata.topicId) {
+        const topic = await transaction.topic.findFirst({
+          where: { id: metadata.topicId, subjectId: metadata.subjectId },
+          select: { id: true },
+        });
+        if (!topic) throw new Error("Assunto não pertence à matéria.");
+      }
+
+      if (question.type === "MC") {
+        const alternativeIds = new Set(
+          question.alternatives.map((alternative) => alternative.id),
+        );
+        if (!alternativeIds.has(correctAnswer)) {
+          throw new Error("Selecione um gabarito válido.");
+        }
+        for (const alternative of question.alternatives) {
+          const alternativeText = text(data, `alternative-${alternative.id}`);
+          await transaction.alternative.update({
+            where: { id: alternative.id },
+            data: {
+              text: alternativeText,
+              isCorrect: alternative.id === correctAnswer,
+            },
+          });
+        }
+      } else if (correctAnswer !== "CE_TRUE" && correctAnswer !== "CE_FALSE") {
+        throw new Error("Selecione o gabarito Certo ou Errado.");
+      }
+
+      const ready =
+        flags.textReviewed &&
+        flags.alternativesReviewed &&
+        flags.answerKeyReviewed &&
+        metadata.annulmentStatus !== AnnulmentStatus.PENDING &&
+        (!flags.requiresVisualReview || flags.visualReviewResolved);
+
+      await transaction.question.update({
+        where: { id },
+        data: {
+          ...metadata,
+          ...flags,
+          reviewedAt: ready ? new Date() : null,
+          ceAnswer:
+            question.type === "CE" ? correctAnswer === "CE_TRUE" : null,
+          status: PublicationStatus.IN_REVIEW,
+        },
+      });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+
   revalidatePath("/admin");
   revalidatePath(`/admin/questoes/${id}`);
 }
@@ -208,7 +445,20 @@ export async function setContestStatus(
         });
         if (!contest) throw new Error("Concurso não encontrado.");
 
+        if (
+          contest.status === PublicationStatus.PUBLISHED &&
+          parsedStatus.data !== PublicationStatus.IN_REVIEW
+        ) {
+          throw new Error(
+            "Um concurso publicado somente pode retornar para revisão.",
+          );
+        }
         if (parsedStatus.data === PublicationStatus.PUBLISHED) {
+          if (contest.status !== PublicationStatus.IN_REVIEW) {
+            throw new Error(
+              "Somente um concurso em revisão pode ser publicado.",
+            );
+          }
           const issues = validateContestForPublication(contest);
           if (issues.length > 0) throw new Error(issues.join(" "));
         }

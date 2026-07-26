@@ -10,8 +10,41 @@ const alternativeSchema = z
     letter: nonEmpty,
     text: nonEmpty,
     isCorrect: z.boolean(),
+    isVisual: z.boolean().default(false),
+    visualAssetPath: nonEmpty.optional(),
+    visualDescription: nonEmpty.optional(),
+    sourcePage: z.number().int().positive().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((alternative, context) => {
+    if (alternative.isVisual) {
+      if (!alternative.visualAssetPath) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["visualAssetPath"],
+          message: "Alternativas visuais devem referenciar o recurso oficial.",
+        });
+      }
+      if (!alternative.sourcePage) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sourcePage"],
+          message: "Alternativas visuais devem registrar a página da fonte.",
+        });
+      }
+    } else if (
+      alternative.visualAssetPath ||
+      alternative.visualDescription ||
+      alternative.sourcePage
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isVisual"],
+        message:
+          "Referências visuais só são permitidas em alternativas marcadas como visuais.",
+      });
+    }
+  });
 
 const questionBase = {
   number: z.number().int().positive(),
@@ -22,6 +55,7 @@ const questionBase = {
   statement: nonEmpty,
   sourcePage: z.number().int().positive().optional(),
   sourceUrl: optionalUrl,
+  requiresVisualReview: z.boolean().default(false),
 };
 
 const ceQuestionSchema = z
@@ -60,6 +94,18 @@ const mcQuestionSchema = z
         code: z.ZodIssueCode.custom,
         path: ["alternatives"],
         message: "Questões MC devem possuir exatamente uma alternativa correta.",
+      });
+    }
+
+    if (
+      question.alternatives.some((alternative) => alternative.isVisual) &&
+      !question.requiresVisualReview
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["requiresVisualReview"],
+        message:
+          "Questões com alternativas visuais devem exigir revisão visual.",
       });
     }
   });
@@ -230,6 +276,11 @@ export function summarizeExamImport(document: ExamImportDocument) {
     ).length,
     mcQuestions: document.questions.filter(
       (question) => question.type === "MC",
+    ).length,
+    visualQuestions: document.questions.filter(
+      (question) =>
+        question.type === "MC" &&
+        question.alternatives.some((alternative) => alternative.isVisual),
     ).length,
     reviewStatus: document.reviewStatus,
   };

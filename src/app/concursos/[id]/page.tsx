@@ -2,6 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import StartSimuladoForm from "./StartSimuladoForm";
+import { auth } from "@/auth";
+import { HomeHeader } from "@/components/home/HomeHeader";
+import {
+  isContestAvailable,
+  publicContestDetailSelect,
+} from "@/lib/contestDetail";
 import { prisma } from "@/lib/prisma";
 
 type ConcursoPageProps = {
@@ -24,41 +30,35 @@ function levelLabel(level: string | null) {
   return level ? (levels[level] ?? level) : "Não informado";
 }
 
+function scoringTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    CE_PENALTY: "Certo/Errado com penalidade",
+    MC_NO_PENALTY: "Múltipla escolha sem penalidade",
+    MC_NEGATIVE: "Múltipla escolha com penalidade",
+  };
+  return labels[type] ?? type;
+}
+
 export default async function ConcursoPage({ params }: ConcursoPageProps) {
-  const { id } = await params;
+  const [{ id }, session] = await Promise.all([params, auth()]);
   const concurso = await prisma.concurso.findFirst({
     where: { id, status: { not: "ARCHIVED" } },
-    select: {
-      id: true,
-      orgao: true,
-      cargo: true,
-      especialidade: true,
-      ano: true,
-      edicao: true,
-      nivel: true,
-      status: true,
-      editalUrl: true,
-      officialPageUrl: true,
-      banca: { select: { name: true } },
-      scoringRule: {
-        select: {
-          type: true,
-          pointsCorrect: true,
-          pointsWrong: true,
-          pointsBlank: true,
-          floorAtZero: true,
-        },
-      },
-      questions: {
-        where: { status: "PUBLISHED" },
-        select: {
-          subject: { select: { id: true, name: true } },
-          block: { select: { id: true, name: true, order: true } },
-        },
-      },
-    },
+    select: publicContestDetailSelect,
   });
   if (!concurso) notFound();
+
+  const publishedQuestions = concurso.questions.filter(
+    ({ status }) => status === "PUBLISHED",
+  );
+  const reviewQuestions = concurso.questions.filter(
+    ({ status }) => status === "IN_REVIEW",
+  );
+  const isAvailable = isContestAvailable({
+    status: concurso.status,
+    hasScoringRule: concurso.scoringRule !== null,
+    publishedQuestionCount: publishedQuestions.length,
+  });
+  const visibleQuestions = isAvailable ? publishedQuestions : reviewQuestions;
 
   const subjectMap = new Map<
     string,
@@ -68,7 +68,7 @@ export default async function ConcursoPage({ params }: ConcursoPageProps) {
     string,
     { id: string; name: string; order: number; questionCount: number }
   >();
-  for (const question of concurso.questions) {
+  for (const question of visibleQuestions) {
     const existingSubject = subjectMap.get(question.subject.id);
     if (existingSubject) {
       existingSubject.questionCount += 1;
@@ -97,208 +97,319 @@ export default async function ConcursoPage({ params }: ConcursoPageProps) {
   const blocks = [...blockMap.values()].sort(
     (a, b) => a.order - b.order || a.name.localeCompare(b.name, "pt-BR"),
   );
-  const totalQuestions = concurso.questions.length;
-  const isAvailable =
-    concurso.status === "PUBLISHED" &&
-    concurso.scoringRule !== null &&
-    totalQuestions > 0;
-  const scoringDescription =
-    concurso.scoringRule?.type === "CE_PENALTY"
-      ? `Certo/Errado: ${formatPoints(concurso.scoringRule.pointsCorrect)} por acerto e ${formatPoints(concurso.scoringRule.pointsWrong)} por erro.`
-      : concurso.scoringRule?.type === "MC_NEGATIVE"
-        ? `Múltipla escolha com ${formatPoints(concurso.scoringRule.pointsCorrect)} por acerto e ${formatPoints(concurso.scoringRule.pointsWrong)} por erro.`
-        : concurso.scoringRule
-          ? `Múltipla escolha sem penalidade: ${formatPoints(concurso.scoringRule.pointsCorrect)} por acerto.`
-          : "Regra de pontuação em configuração.";
+  const weights = [
+    ...new Set(visibleQuestions.map(({ weight }) => weight)),
+  ].sort((a, b) => a - b);
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 py-10">
-      <Link
-        href="/#catalogo"
-        className="mb-8 inline-flex text-sm text-neutral-400 transition hover:text-orange-400"
-      >
-        ← Voltar ao catálogo
-      </Link>
+    <div className="min-h-screen bg-[#f6f4ed] text-slate-950">
+      <HomeHeader
+        isAuthenticated={Boolean(session?.user)}
+        isAdmin={session?.user?.role === "ADMIN"}
+      />
 
-      <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-orange-400">
-              {concurso.orgao}
-            </p>
-            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">
-              {concurso.cargo}
-            </h1>
-            {concurso.especialidade && (
-              <p className="mt-2 text-lg text-neutral-300">
-                {concurso.especialidade}
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+        <Link
+          href="/#catalogo"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-emerald-900 transition hover:text-emerald-700"
+        >
+          ← Voltar ao catálogo
+        </Link>
+
+        <section className="mt-5 overflow-hidden rounded-3xl border border-emerald-950/10 bg-[#07110f] text-white shadow-sm">
+          <div className="grid gap-8 p-6 sm:p-9 lg:grid-cols-[1.25fr_0.75fr] lg:p-12">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-400">
+                  {concurso.orgao}
+                </p>
+                <StatusBadge available={isAvailable} />
+              </div>
+              <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-5xl">
+                {concurso.cargo}
+              </h1>
+              {concurso.especialidade && (
+                <p className="mt-3 text-xl font-medium text-slate-200">
+                  {concurso.especialidade}
+                </p>
+              )}
+              <p className="mt-6 max-w-2xl leading-7 text-slate-300">
+                Simulado organizado conforme a estrutura e a regra de pontuação
+                registradas para esta prova.
               </p>
-            )}
-          </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
-              isAvailable
-                ? "bg-emerald-950 text-emerald-300"
-                : "bg-amber-950 text-amber-300"
-            }`}
-          >
-            {isAvailable ? "DISPONÍVEL" : concurso.status}
-          </span>
-        </div>
+            </div>
 
-        <dl className="mt-7 grid gap-4 border-y border-neutral-800 py-6 sm:grid-cols-2 lg:grid-cols-4">
-          <Metadata label="Instituição" value={concurso.orgao} />
-          <Metadata label="Banca" value={concurso.banca.name} />
-          <Metadata
-            label="Edição"
-            value={
-              concurso.edicao
-                ? `${concurso.edicao} · ${concurso.ano}`
-                : String(concurso.ano)
-            }
+            <dl className="grid grid-cols-2 gap-3">
+              <HeroMetadata label="Banca" value={concurso.banca.name} />
+              <HeroMetadata
+                label="Edição"
+                value={concurso.edicao ?? "Não informada"}
+              />
+              <HeroMetadata label="Ano" value={String(concurso.ano)} />
+              <HeroMetadata label="Nível" value={levelLabel(concurso.nivel)} />
+            </dl>
+          </div>
+        </section>
+
+        <section
+          aria-label="Resumo do concurso"
+          className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          <SummaryCard
+            label={isAvailable ? "Questões publicadas" : "Questões em revisão"}
+            value={String(
+              isAvailable
+                ? publishedQuestions.length
+                : reviewQuestions.length,
+            )}
           />
-          <Metadata label="Nível" value={levelLabel(concurso.nivel)} />
-          <Metadata
-            label="Questões"
-            value={isAvailable ? String(totalQuestions) : "Em revisão"}
-          />
-          <Metadata
-            label="Matérias"
-            value={isAvailable ? String(subjects.length) : "Em revisão"}
-          />
-          <Metadata
-            label="Blocos"
-            value={isAvailable ? String(blocks.length) : "Em revisão"}
-          />
-          <Metadata
+          <SummaryCard label="Matérias" value={String(subjects.length)} />
+          <SummaryCard label="Blocos" value={String(blocks.length)} />
+          <SummaryCard
             label="Duração"
             value={isAvailable ? "Configurável ao iniciar" : "A confirmar"}
           />
-        </dl>
+        </section>
 
-        <div className="mt-6 flex flex-wrap gap-4 text-sm">
+        <div className="mt-5 flex flex-wrap gap-5 text-sm">
           {concurso.officialPageUrl && (
-            <a
-              href={concurso.officialPageUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-orange-400"
-            >
+            <SourceLink href={concurso.officialPageUrl}>
               Página oficial
-            </a>
+            </SourceLink>
           )}
           {concurso.editalUrl && (
-            <a
-              href={concurso.editalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-orange-400"
-            >
-              Consultar edital
-            </a>
+            <SourceLink href={concurso.editalUrl}>Consultar edital</SourceLink>
           )}
         </div>
-      </section>
 
-      {!isAvailable || !concurso.scoringRule ? (
-        <section className="mt-8 rounded-2xl border border-amber-900 bg-amber-950/30 p-6">
-          <h2 className="text-lg font-semibold text-amber-200">
-            Prova e gabarito em revisão
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-amber-100/70">
-            Este concurso ainda está em preparação. A regra de pontuação, as
-            fontes e as questões precisam concluir a revisão humana antes que
-            um simulado possa ser iniciado.
-          </p>
-          <Link
-            href="/#catalogo"
-            className="mt-5 inline-flex rounded-lg border border-amber-800 px-4 py-2 text-sm font-semibold text-amber-200"
-          >
-            Retornar ao catálogo
-          </Link>
+        {!isAvailable && (
+          <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm sm:p-8">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+                Em preparação
+              </span>
+              <span className="text-sm font-semibold text-amber-900">
+                {reviewQuestions.length}{" "}
+                {reviewQuestions.length === 1
+                  ? "questão em revisão"
+                  : "questões em revisão"}
+              </span>
+            </div>
+            <h2 className="mt-5 text-xl font-bold text-slate-950">
+              Esta prova e seu gabarito estão em revisão editorial.
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              A revisão humana precisa confirmar fontes, textos, alternativas,
+              gabaritos e regras antes que este concurso possa receber
+              tentativas.
+            </p>
+            <Link
+              href="/#catalogo"
+              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-900 px-5 py-3 text-sm font-bold text-emerald-950 transition hover:bg-emerald-50"
+            >
+              Retornar ao catálogo
+            </Link>
+            {session?.user?.role === "ADMIN" && (
+              <div className="mt-4 flex flex-wrap gap-3 border-t border-amber-200 pt-4">
+                <Link
+                  href={`/admin/concursos/${concurso.id}`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-800 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+                >
+                  Editar concurso
+                </Link>
+                <Link
+                  href={`/admin?institution=${encodeURIComponent(concurso.orgao)}&specialty=${encodeURIComponent(concurso.especialidade ?? "")}&status=IN_REVIEW`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-800 px-5 py-3 text-sm font-bold text-emerald-900 hover:bg-emerald-50"
+                >
+                  Ver questões em revisão
+                </Link>
+                <Link
+                  href={`/admin/concursos/${concurso.id}/preview`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:border-emerald-600"
+                >
+                  Pré-visualizar como candidato
+                </Link>
+              </div>
+            )}
+          </section>
+        )}
+
+        {concurso.scoringRule && (
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-800">
+                Como sua nota é calculada
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950">
+                Regra de pontuação
+              </h2>
+            </div>
+            <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <RuleMetric
+                label="Tipo"
+                value={scoringTypeLabel(concurso.scoringRule.type)}
+              />
+              <RuleMetric
+                label="Por acerto"
+                value={`${formatPoints(concurso.scoringRule.pointsCorrect)} ponto(s)`}
+              />
+              <RuleMetric
+                label="Por erro"
+                value={
+                  concurso.scoringRule.pointsWrong === 0
+                    ? "Sem penalidade"
+                    : `${formatPoints(concurso.scoringRule.pointsWrong)} ponto(s)`
+                }
+              />
+              <RuleMetric
+                label="Em branco"
+                value={`${formatPoints(concurso.scoringRule.pointsBlank)} ponto(s)`}
+              />
+              <RuleMetric
+                label="Nota mínima"
+                value={
+                  concurso.scoringRule.floorAtZero
+                    ? "Limitada a zero"
+                    : "Pode ser negativa"
+                }
+              />
+            </dl>
+            <p className="mt-5 text-sm text-slate-600">
+              <strong className="text-slate-900">Pesos das questões: </strong>
+              {weights.length > 0
+                ? weights.map(formatPoints).join(", ")
+                : "Aguardando questões revisadas."}
+            </p>
+          </section>
+        )}
+
+        <section className="mt-8 grid gap-5 lg:grid-cols-2">
+          <ListSection
+            title="Matérias"
+            emptyMessage="As matérias ainda não foram configuradas."
+            items={subjects.map(
+              (subject) =>
+                `${subject.name} · ${subject.questionCount} ${
+                  subject.questionCount === 1 ? "questão" : "questões"
+                }`,
+            )}
+          />
+          <ListSection
+            title="Blocos"
+            emptyMessage="Esta prova não possui blocos configurados."
+            items={blocks.map(
+              (block) =>
+                `${block.name} · ${block.questionCount} ${
+                  block.questionCount === 1 ? "questão" : "questões"
+                }`,
+            )}
+          />
         </section>
-      ) : (
-        <>
-          <section className="mt-8 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
-              <h2 className="font-semibold">Regra de pontuação</h2>
-              <p className="mt-3 text-sm leading-6 text-neutral-400">
-                {scoringDescription} Questões em branco valem{" "}
-                {formatPoints(concurso.scoringRule.pointsBlank)} ponto.
-                {concurso.scoringRule.floorAtZero
-                  ? " A nota líquida não fica abaixo de zero."
-                  : " A nota líquida pode ficar abaixo de zero."}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
-              <h2 className="font-semibold">Duração</h2>
-              <p className="mt-3 text-sm leading-6 text-neutral-400">
-                Escolha ao iniciar: sem limite, 15, 30, 60 ou 120 minutos. O
-                servidor controla o tempo a partir do início da tentativa.
-              </p>
-            </div>
-          </section>
 
-          <section className="mt-8 grid gap-5 lg:grid-cols-2">
-            <ListSection
-              title="Matérias"
-              items={subjects.map(
-                (subject) =>
-                  `${subject.name} · ${subject.questionCount} ${
-                    subject.questionCount === 1 ? "questão" : "questões"
-                  }`,
-              )}
-            />
-            <ListSection
-              title="Blocos"
-              items={
-                blocks.length > 0
-                  ? blocks.map(
-                      (block) =>
-                        `${block.name} · ${block.questionCount} ${
-                          block.questionCount === 1 ? "questão" : "questões"
-                        }`,
-                    )
-                  : ["Esta prova não possui blocos configurados."]
-              }
-            />
-          </section>
-
+        {isAvailable && concurso.scoringRule && (
           <section className="mt-8">
             <StartSimuladoForm
               concursoId={concurso.id}
-              totalQuestions={totalQuestions}
+              totalQuestions={publishedQuestions.length}
               subjects={subjects}
             />
           </section>
-        </>
-      )}
-    </main>
-  );
-}
-
-function Metadata({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide text-neutral-500">
-        {label}
-      </dt>
-      <dd className="mt-1 font-medium text-neutral-200">{value}</dd>
+        )}
+      </main>
     </div>
   );
 }
 
-function ListSection({ title, items }: { title: string; items: string[] }) {
+function StatusBadge({ available }: { available: boolean }) {
   return (
-    <section className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
-      <h2 className="font-semibold">{title}</h2>
-      <ul className="mt-4 space-y-2 text-sm text-neutral-400">
-        {items.map((item) => (
-          <li key={item} className="rounded-lg bg-neutral-900 px-4 py-3">
-            {item}
-          </li>
-        ))}
-      </ul>
+    <span
+      className={
+        available
+          ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900"
+          : "rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900"
+      }
+    >
+      {available ? "Disponível" : "Em preparação"}
+    </span>
+  );
+}
+
+function HeroMetadata({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </dt>
+      <dd className="mt-1 font-bold text-white">{value}</dd>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <dt className="text-sm text-slate-500">{label}</dt>
+      <dd className="mt-2 text-xl font-black text-slate-950">{value}</dd>
+    </div>
+  );
+}
+
+function RuleMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[#f6f4ed] p-4">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-2 text-sm font-bold text-slate-950">{value}</dd>
+    </div>
+  );
+}
+
+function ListSection({
+  title,
+  items,
+  emptyMessage,
+}: {
+  title: string;
+  items: string[];
+  emptyMessage: string;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <h2 className="text-xl font-black text-slate-950">{title}</h2>
+      {items.length > 0 ? (
+        <ul className="mt-5 space-y-3 text-sm text-slate-700">
+          {items.map((item) => (
+            <li
+              key={item}
+              className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 text-sm text-slate-600">{emptyMessage}</p>
+      )}
     </section>
+  );
+}
+
+function SourceLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="font-semibold text-emerald-900 underline decoration-amber-400 decoration-2 underline-offset-4"
+    >
+      {children}
+    </a>
   );
 }

@@ -132,14 +132,17 @@ export default function StartSimuladoForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 sm:p-8"
+      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
     >
       <div>
-        <h2 className="text-xl font-semibold text-neutral-100">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-800">
+          Monte sua tentativa
+        </p>
+        <h2 className="mt-2 text-2xl font-black text-slate-950">
           Configure seu simulado
         </h2>
 
-        <p className="mt-2 text-sm leading-6 text-neutral-400">
+        <p className="mt-2 text-sm leading-6 text-slate-600">
           Escolha as matérias e a quantidade de questões que deseja
           responder.
         </p>
@@ -147,7 +150,7 @@ export default function StartSimuladoForm({
 
       <div className="mt-7">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="font-medium text-neutral-200">
+          <label className="font-bold text-slate-900">
             Matérias
           </label>
 
@@ -155,7 +158,7 @@ export default function StartSimuladoForm({
             <button
               type="button"
               onClick={selectAllSubjects}
-              className="text-orange-400 hover:text-orange-300"
+              className="font-semibold text-emerald-800 hover:text-emerald-700"
             >
               Selecionar todas
             </button>
@@ -163,7 +166,7 @@ export default function StartSimuladoForm({
             <button
               type="button"
               onClick={clearSubjects}
-              className="text-neutral-500 hover:text-neutral-300"
+              className="font-semibold text-slate-500 hover:text-slate-800"
             >
               Limpar
             </button>
@@ -179,8 +182,8 @@ export default function StartSimuladoForm({
                 key={subject.id}
                 className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-colors ${
                   isSelected
-                    ? "border-orange-500 bg-orange-500/10"
-                    : "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
+                    ? "border-emerald-700 bg-emerald-50"
+                    : "border-slate-200 bg-slate-50 hover:border-emerald-400"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -188,15 +191,15 @@ export default function StartSimuladoForm({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleSubject(subject.id)}
-                    className="h-4 w-4 accent-orange-500"
+                    className="h-4 w-4 accent-emerald-800"
                   />
 
-                  <span className="text-sm text-neutral-200">
+                  <span className="text-sm font-medium text-slate-900">
                     {subject.name}
                   </span>
                 </div>
 
-                <span className="text-xs text-neutral-500">
+                <span className="text-xs text-slate-500">
                   {subject.questionCount}
                 </span>
               </label>
@@ -208,7 +211,7 @@ export default function StartSimuladoForm({
       <div className="mt-7">
         <label
           htmlFor="durationMinutes"
-          className="block font-medium text-neutral-200"
+          className="block font-bold text-slate-900"
         >
           Limite de tempo
         </label>
@@ -222,7 +225,7 @@ export default function StartSimuladoForm({
                 : Number(event.target.value),
             )
           }
-          className="mt-3 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-neutral-100"
+          className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100 sm:max-w-xs"
         >
           <option value="">Sem limite</option>
           <option value="15">15 minutos</option>
@@ -235,12 +238,12 @@ export default function StartSimuladoForm({
       <div className="mt-7">
         <label
           htmlFor="questionCount"
-          className="block font-medium text-neutral-200"
+          className="block font-bold text-slate-900"
         >
           Quantidade de questões
         </label>
 
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-slate-500">
           {availableQuestions} questões disponíveis nas matérias
           selecionadas.
         </p>
@@ -256,12 +259,12 @@ export default function StartSimuladoForm({
             setQuestionCount(nextValue);
             setError("");
           }}
-          className="mt-3 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-neutral-100 outline-none transition-colors focus:border-orange-500 sm:max-w-xs"
+          className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100 sm:max-w-xs"
         />
       </div>
 
       {error && (
-        <div className="mt-5 rounded-xl border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -273,7 +276,7 @@ export default function StartSimuladoForm({
           selectedSubjects.length === 0 ||
           availableQuestions === 0
         }
-        className="mt-7 inline-flex w-full items-center justify-center rounded-xl bg-orange-500 px-5 py-3 font-semibold text-neutral-950 transition-colors hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+        className="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         {isLoading ? "Preparando simulado..." : "Iniciar simulado"}
       </button>

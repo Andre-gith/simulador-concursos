@@ -32,6 +32,12 @@ enum QuestionType {
   MC
 }
 
+enum AnnulmentStatus {
+  PENDING
+  NOT_ANNULLED
+  ANNULLED
+}
+
 enum ImportStatus {
   PENDING
   EXTRACTED
@@ -205,6 +211,16 @@ model Question {
   sourceUrl  String?
   sourcePage Int?
 
+  textReviewed         Boolean         @default(false)
+  alternativesReviewed Boolean         @default(false)
+  answerKeyReviewed    Boolean         @default(false)
+  requiresVisualReview Boolean         @default(false)
+  visualReviewResolved Boolean         @default(false)
+  annulmentStatus      AnnulmentStatus @default(NOT_ANNULLED)
+  extractionNotes      String?         @db.Text
+  reviewedAt           DateTime?
+  publishedAt          DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -217,15 +233,21 @@ model Question {
   @@index([subjectId])
   @@index([topicId])
   @@index([status])
+  @@index([requiresVisualReview, visualReviewResolved])
+  @@index([annulmentStatus])
 }
 
 model Alternative {
-  id         String   @id @default(cuid())
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id])
-  letter     String
-  text       String
-  isCorrect  Boolean
+  id                String   @id @default(cuid())
+  questionId        String
+  question          Question @relation(fields: [questionId], references: [id])
+  letter            String
+  text              String
+  isCorrect         Boolean
+  isVisual          Boolean  @default(false)
+  visualAssetPath   String?
+  visualDescription String?  @db.Text
+  sourcePage        Int?
 
   @@unique([questionId, letter])
   @@index([questionId])

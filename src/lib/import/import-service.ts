@@ -245,6 +245,10 @@ async function persistDocument(
             letter: alternative.letter.toUpperCase(),
             text: alternative.text,
             isCorrect: alternative.isCorrect,
+            isVisual: alternative.isVisual,
+            visualAssetPath: alternative.visualAssetPath ?? null,
+            visualDescription: alternative.visualDescription ?? null,
+            sourcePage: alternative.sourcePage ?? null,
           }))
         : [];
     const questionData = {
@@ -264,6 +268,12 @@ async function persistDocument(
       weight: question.weight,
       sourceUrl: question.sourceUrl,
       sourcePage: question.sourcePage,
+      requiresVisualReview: question.requiresVisualReview,
+      visualReviewResolved: false,
+      textReviewed: false,
+      alternativesReviewed: false,
+      answerKeyReviewed: false,
+      annulmentStatus: "PENDING" as const,
       status: PublicationStatus.IN_REVIEW,
     };
     const existing = await transaction.question.findFirst({
