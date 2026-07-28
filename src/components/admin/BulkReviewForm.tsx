@@ -2,29 +2,37 @@
 
 import { useState } from "react";
 
+import { bulkReviewQuestions } from "@/app/admin/actions";
+
 export function BulkReviewForm({
-  action,
   children,
 }: {
-  action: (data: FormData) => Promise<void>;
   children: React.ReactNode;
 }) {
   const [selectedCount, setSelectedCount] = useState(0);
+  const [validationMessage, setValidationMessage] = useState("");
 
   return (
     <form
-      action={action}
+      action={bulkReviewQuestions}
       onChange={(event) => {
         const form = event.currentTarget;
-        setSelectedCount(
-          form.querySelectorAll<HTMLInputElement>(
-            'input[name="questionIds"]:checked',
-          ).length,
-        );
+        const nextSelectedCount = form.querySelectorAll<HTMLInputElement>(
+          'input[name="questionIds"]:checked',
+        ).length;
+        setSelectedCount(nextSelectedCount);
+        if (nextSelectedCount > 0) setValidationMessage("");
       }}
       onSubmit={(event) => {
+        if (selectedCount === 0) {
+          event.preventDefault();
+          setValidationMessage(
+            "Selecione pelo menos uma questão antes de aplicar a ação em lote.",
+          );
+          return;
+        }
+        setValidationMessage("");
         if (
-          selectedCount === 0 ||
           !window.confirm(
             `Confirmar a ação em lote para ${selectedCount} questão(ões)? A operação será validada e executada em uma única transação.`,
           )
@@ -49,11 +57,15 @@ export function BulkReviewForm({
         <input type="hidden" name="confirmation" value="CONFIRM" />
         <button
           type="submit"
-          disabled={selectedCount === 0}
-          className="rounded-xl bg-amber-400 px-4 py-3 font-bold text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-xl bg-amber-400 px-4 py-3 font-bold text-slate-950 hover:bg-amber-300"
         >
           Aplicar a {selectedCount} selecionada(s)
         </button>
+        {validationMessage && (
+          <p role="alert" className="w-full text-sm font-semibold text-red-700">
+            {validationMessage}
+          </p>
+        )}
       </div>
       {children}
     </form>

@@ -56,6 +56,12 @@ enum UserRole {
   ADMIN
 }
 
+enum VisualPlacement {
+  STATEMENT
+  ALTERNATIVE
+  SHARED
+}
+
 model Banca {
   id             String                  @id @default(cuid())
   name           String                  @unique
@@ -207,19 +213,23 @@ model Question {
   status    PublicationStatus @default(PUBLISHED)
 
   alternatives Alternative[]
+  visualAssets QuestionVisualAsset[]
 
   sourceUrl  String?
   sourcePage Int?
 
-  textReviewed         Boolean         @default(false)
-  alternativesReviewed Boolean         @default(false)
-  answerKeyReviewed    Boolean         @default(false)
-  requiresVisualReview Boolean         @default(false)
-  visualReviewResolved Boolean         @default(false)
-  annulmentStatus      AnnulmentStatus @default(NOT_ANNULLED)
-  extractionNotes      String?         @db.Text
-  reviewedAt           DateTime?
-  publishedAt          DateTime?
+  textReviewed              Boolean         @default(false)
+  alternativesReviewed      Boolean         @default(false)
+  answerKeyReviewed         Boolean         @default(false)
+  requiresVisualReview      Boolean         @default(false)
+  visualReviewResolved      Boolean         @default(false)
+  publicationOverride       Boolean         @default(false)
+  publicationOverrideReason String?         @db.Text
+  publicationOverrideAt     DateTime?
+  annulmentStatus           AnnulmentStatus @default(NOT_ANNULLED)
+  extractionNotes           String?         @db.Text
+  reviewedAt                DateTime?
+  publishedAt               DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -235,6 +245,23 @@ model Question {
   @@index([status])
   @@index([requiresVisualReview, visualReviewResolved])
   @@index([annulmentStatus])
+}
+
+model QuestionVisualAsset {
+  id                String          @id @default(cuid())
+  questionId        String
+  question          Question        @relation(fields: [questionId], references: [id])
+  placement         VisualPlacement @default(STATEMENT)
+  alternativeLetter String?
+  assetPath         String
+  sourcePage        Int
+  order             Int             @default(0)
+  description       String?         @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+
+  @@unique([questionId, assetPath])
+  @@index([questionId, order])
 }
 
 model Alternative {

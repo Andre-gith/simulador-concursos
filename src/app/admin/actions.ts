@@ -370,6 +370,134 @@ export type AdminActionState = {
   message: string;
 };
 
+export type VisualReviewActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+  results: Array<{ questionId: string; number: number | null; result: string }>;
+};
+
+const visualConfirmation =
+  "Confirmo que o recurso visual corresponde ao documento oficial e está legível.";
+
+export async function approveVisualQuestions(
+  _previousState: VisualReviewActionState,
+  data: FormData,
+): Promise<VisualReviewActionState> {
+  await requireAdmin();
+  const ids = data
+    .getAll("questionIds")
+    .filter((value): value is string => typeof value === "string");
+  const uniqueIds = [...new Set(ids)];
+  if (
+    uniqueIds.length === 0 ||
+    uniqueIds.length !== ids.length ||
+    data.get("confirmation") !== visualConfirmation
+  ) {
+    return {
+      status: "error",
+      message: "Selecione questões e confirme explicitamente a revisão visual.",
+      results: [],
+    };
+  }
+
+  try {
+    const results = await prisma.$transaction(
+      async (transaction) => {
+        const questions = await transaction.question.findMany({
+          where: {
+            id: { in: uniqueIds },
+            concursoId: {
+              in: [
+                "cms16omz00002vpvk847qx2re",
+                "cms15wngw0002vpg0t03yq5tv",
+              ],
+            },
+          },
+          include: {
+            alternatives: true,
+            paper: true,
+            visualAssets: true,
+          },
+        });
+        if (questions.length !== uniqueIds.length) {
+          throw new Error("Uma ou mais questões selecionadas não são elegíveis.");
+        }
+        const output: VisualReviewActionState["results"] = [];
+        for (const question of questions) {
+          if (
+            question.status !== PublicationStatus.IN_REVIEW ||
+            !question.requiresVisualReview ||
+            question.visualAssets.length === 0 ||
+            question.id === "cms16on8y00ddvpvkbjcj4y5o"
+          ) {
+            output.push({
+              questionId: question.id,
+              number: question.number,
+              result: "Mantida em revisão: seleção não elegível.",
+            });
+            continue;
+          }
+          const candidate = {
+            ...question,
+            textReviewed: true,
+            alternativesReviewed: true,
+            answerKeyReviewed: true,
+            visualReviewResolved: true,
+            annulmentStatus: AnnulmentStatus.NOT_ANNULLED,
+          };
+          const issues = validateQuestionForPublication(candidate);
+          if (issues.length > 0) {
+            output.push({
+              questionId: question.id,
+              number: question.number,
+              result: `Mantida em revisão: ${issues.join(" ")}`,
+            });
+            continue;
+          }
+          const now = new Date();
+          await transaction.question.update({
+            where: { id: question.id },
+            data: {
+              textReviewed: true,
+              alternativesReviewed: true,
+              answerKeyReviewed: true,
+              visualReviewResolved: true,
+              annulmentStatus: AnnulmentStatus.NOT_ANNULLED,
+              reviewedAt: now,
+              publishedAt: now,
+              status: PublicationStatus.PUBLISHED,
+            },
+          });
+          output.push({
+            questionId: question.id,
+            number: question.number,
+            result: "Visual aprovado e questão publicada.",
+          });
+        }
+        return output;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    revalidatePath("/admin");
+    revalidatePath("/admin/revisao-visual/banco-do-brasil");
+    return {
+      status: "success",
+      message: "Revisão visual concluída para a seleção.",
+      results,
+    };
+  } catch (error) {
+    console.error("Falha na aprovação visual em lote.", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      status: "error",
+      message:
+        error instanceof Error ? error.message : "Falha na revisão visual.",
+      results: [],
+    };
+  }
+}
+
 export async function updateContestMetadata(
   _previousState: AdminActionState,
   data: FormData,

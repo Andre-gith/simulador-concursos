@@ -7,7 +7,6 @@ import Link from "next/link";
 
 import { PdfImportForm } from "./PdfImportForm";
 import {
-  bulkReviewQuestions,
   createBank,
   createSubject,
   createTopic,
@@ -122,7 +121,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         },
         include: {
           banca: true,
-          questions: { select: { status: true } },
+          questions: {
+            select: { status: true, publicationOverride: true },
+          },
         },
         orderBy: [{ createdAt: "desc" }],
       }),
@@ -208,6 +209,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             : {}),
           ...(visual === "pending"
             ? { requiresVisualReview: true, visualReviewResolved: false }
+            : visual === "override"
+              ? { publicationOverride: true }
             : visual === "yes"
               ? { requiresVisualReview: true }
               : visual === "no"
@@ -338,6 +341,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <select name="visual" defaultValue={visual} className="input">
             <option value="">Qualquer elemento visual</option>
             <option value="pending">Revisão visual pendente</option>
+            <option value="override">Publicadas por override</option>
             <option value="yes">Com elemento visual</option>
             <option value="no">Sem elemento visual</option>
           </select>
@@ -390,6 +394,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <th className="px-3 py-3 text-center">Total</th>
                 <th className="px-3 py-3 text-center">Revisão</th>
                 <th className="px-3 py-3 text-center">Publicadas</th>
+                <th className="px-3 py-3 text-center">Override visual</th>
                 <th className="px-3 py-3">Ação</th>
               </tr>
             </thead>
@@ -400,6 +405,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 ).length;
                 const published = contest.questions.filter(
                   (question) => question.status === "PUBLISHED",
+                ).length;
+                const overrides = contest.questions.filter(
+                  (question) => question.publicationOverride,
                 ).length;
                 return (
                   <tr
@@ -426,6 +434,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </td>
                     <td className="px-3 py-4 text-center">{inReview}</td>
                     <td className="px-3 py-4 text-center">{published}</td>
+                    <td className="px-3 py-4 text-center">{overrides}</td>
                     <td className="px-3 py-4">
                       <Link
                         href={`/admin/concursos/${contest.id}`}
@@ -546,7 +555,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           Selecione apenas as questões conferidas nesta sessão. A operação é
           atômica: se uma seleção for inválida, nenhuma questão será alterada.
         </p>
-        <BulkReviewForm action={bulkReviewQuestions}>
+        <BulkReviewForm>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-[1150px] w-full text-left text-sm">
             <thead className="border-b border-neutral-800 text-xs uppercase text-neutral-500">
@@ -633,11 +642,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       {hasAnswerKey ? "Presente" : "Ausente"}
                     </td>
                     <td className="px-3 py-4">
-                      {question.requiresVisualReview
-                        ? question.visualReviewResolved
-                          ? "Resolvido"
-                          : "Pendente"
-                        : "Não"}
+                      {question.publicationOverride
+                        ? "Publicada por override administrativo — revisão visual pendente."
+                        : question.requiresVisualReview
+                          ? question.visualReviewResolved
+                            ? "Resolvido"
+                            : "Pendente"
+                          : "Não"}
                     </td>
                     <td className="px-3 py-4">
                       {question.annulmentStatus}

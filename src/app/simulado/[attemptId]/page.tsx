@@ -67,6 +67,15 @@ export default async function SimuladoPage({
                       text: true,
                     },
                   },
+                  visualAssets: {
+                    orderBy: {
+                      order: "asc",
+                    },
+                    select: {
+                      id: true,
+                      sourcePage: true,
+                    },
+                  },
                 },
               },
             },
@@ -93,6 +102,7 @@ export default async function SimuladoPage({
       statement: item.question.statement,
       subject: item.question.subject.name,
       topic: item.question.topic?.name ?? null,
+      visualAssets: item.question.visualAssets,
       alternatives: item.question.alternatives.map((alternative) => ({
         id: alternative.id,
         letter: alternative.letter,

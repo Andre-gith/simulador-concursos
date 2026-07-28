@@ -47,7 +47,11 @@ export function validateBulkQuestionSelection(
     ) {
       issues.push(`${label}: somente questões em revisão podem ser publicadas.`);
     }
-    if (question.requiresVisualReview && !question.visualReviewResolved) {
+    if (
+      question.requiresVisualReview &&
+      !question.visualReviewResolved &&
+      !question.publicationOverride
+    ) {
       issues.push(`${label}: possui revisão visual pendente.`);
     }
     if (

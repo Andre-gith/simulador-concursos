@@ -16,6 +16,7 @@ export type SimuladoQuestion = {
   statement: string;
   subject: string;
   topic: string | null;
+  visualAssets: Array<{ id: string; sourcePage: number }>;
   alternatives: SimuladoAlternative[];
 };
 
@@ -255,6 +256,19 @@ export default function SimuladoClient({
           <p className="mt-7 whitespace-pre-line text-base leading-8 text-slate-800">
             {currentQuestion.statement}
           </p>
+          {currentQuestion.visualAssets.length > 0 && (
+            <div className="mt-6 grid gap-4">
+              {currentQuestion.visualAssets.map((asset) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={asset.id}
+                  src={`/api/visual-assets/${asset.id}`}
+                  alt={`Recurso visual da questão, página ${asset.sourcePage}`}
+                  className="h-auto max-h-[900px] w-full rounded-xl border border-slate-200 object-contain"
+                />
+              ))}
+            </div>
+          )}
 
           <div className="mt-8 space-y-3">
             {currentQuestion.type === "CE" ? (

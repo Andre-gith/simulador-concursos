@@ -15,8 +15,12 @@ export type PublicationQuestion = {
   answerKeyReviewed: boolean;
   requiresVisualReview: boolean;
   visualReviewResolved: boolean;
+  publicationOverride?: boolean;
+  publicationOverrideReason?: string | null;
+  publicationOverrideAt?: Date | null;
   annulmentStatus: "PENDING" | "NOT_ANNULLED" | "ANNULLED";
   paper?: { provaUrl: string | null } | null;
+  visualAssets?: Array<{ assetPath: string; sourcePage: number }>;
   alternatives: Array<{
     text: string;
     isCorrect: boolean;
@@ -60,8 +64,35 @@ export function validateQuestionForPublication(
   if (question.annulmentStatus === "ANNULLED") {
     issues.push(`${label}: questões anuladas não podem ser publicadas.`);
   }
-  if (question.requiresVisualReview && !question.visualReviewResolved) {
+  if (
+    question.requiresVisualReview &&
+    !question.visualReviewResolved &&
+    !question.publicationOverride
+  ) {
     issues.push(`${label}: a pendência visual ainda não foi resolvida.`);
+  }
+  if (
+    question.publicationOverride &&
+    (!question.publicationOverrideReason?.trim() ||
+      !question.publicationOverrideAt)
+  ) {
+    issues.push(
+      `${label}: o override administrativo não possui justificativa e data.`,
+    );
+  }
+  if (
+    question.requiresVisualReview &&
+    (question.visualAssets?.length ?? 0) === 0 &&
+    !question.alternatives.some((alternative) => alternative.isVisual)
+  ) {
+    issues.push(`${label}: o recurso visual oficial não está registrado.`);
+  }
+  if (
+    question.visualAssets?.some(
+      (asset) => !asset.assetPath.trim() || asset.sourcePage <= 0,
+    )
+  ) {
+    issues.push(`${label}: há recurso visual sem caminho ou página válida.`);
   }
   if (!Number.isFinite(question.weight) || question.weight <= 0) {
     issues.push(`${label}: o peso deve ser maior que zero.`);

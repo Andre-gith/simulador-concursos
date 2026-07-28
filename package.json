@@ -14,7 +14,11 @@
     "db:seed": "tsx prisma/seed.ts",
     "catalog:seed": "tsx scripts/seed-catalog.ts",
     "db:generate": "prisma generate",
-    "import:exam": "tsx scripts/import-exam.ts"
+    "import:exam": "tsx scripts/import-exam.ts",
+    "review:exam": "tsx scripts/review-exam.ts",
+    "fix:bb-artifacts": "tsx scripts/fix-bb-artifacts.ts",
+    "sync:bb-visuals": "tsx scripts/sync-bb-visual-assets.ts",
+    "publish:bb-overrides": "tsx scripts/publish-bb-overrides.ts"
   },
   "dependencies": {
     "next": "^15.1.0",
