@@ -172,4 +172,31 @@ describe("Auth.js", () => {
     });
     expect(verifyPasswordMock).toHaveBeenCalledWith("senha-correta", "hash");
   });
+
+  it("aceita credenciais válidas de administrador sem alterar a verificação", async () => {
+    findUniqueMock.mockResolvedValue({
+      id: "admin-123",
+      email: "admin@example.com",
+      name: "Admin",
+      role: "ADMIN",
+      passwordHash: "hash-admin",
+    });
+    verifyPasswordMock.mockResolvedValue(true);
+
+    await expect(
+      authorizeCredentials({
+        email: "admin@example.com",
+        password: "senha-admin",
+      }),
+    ).resolves.toEqual({
+      id: "admin-123",
+      email: "admin@example.com",
+      name: "Admin",
+      role: "ADMIN",
+    });
+    expect(verifyPasswordMock).toHaveBeenCalledWith(
+      "senha-admin",
+      "hash-admin",
+    );
+  });
 });

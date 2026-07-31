@@ -25,13 +25,13 @@ export function AvailableContestCard({
   contest: CatalogContest;
 }) {
   return (
-    <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-700 hover:shadow-md">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
+    <article className="flex h-full min-w-0 max-w-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-700 hover:shadow-md">
+      <div className="mb-5 flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-semibold uppercase tracking-wide text-emerald-800 [overflow-wrap:anywhere]">
             {contest.institution}
           </p>
-          <h3 className="mt-2 text-xl font-bold leading-snug text-slate-950">
+          <h3 className="mt-2 break-words text-xl font-bold leading-snug text-slate-950 [overflow-wrap:anywhere]">
             {contestTitle(contest)}
           </h3>
         </div>
@@ -40,30 +40,30 @@ export function AvailableContestCard({
         </span>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-y border-slate-100 py-5 text-sm">
-        <div>
+      <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-4 gap-y-4 border-y border-slate-100 py-5 text-sm">
+        <div className="min-w-0">
           <dt className="text-slate-500">Banca</dt>
-          <dd className="mt-1 font-semibold text-slate-900">{contest.board}</dd>
+          <dd className="mt-1 break-words font-semibold text-slate-900 [overflow-wrap:anywhere]">{contest.board}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-slate-500">Edição</dt>
-          <dd className="mt-1 font-semibold text-slate-900">
+          <dd className="mt-1 break-words font-semibold text-slate-900 [overflow-wrap:anywhere]">
             {editionLabel(contest)}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-slate-500">Nível</dt>
           <dd className="mt-1 font-semibold text-slate-900">
             {describeLevel(contest.level)}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-slate-500">Questões publicadas</dt>
           <dd className="mt-1 font-semibold text-slate-900">
             {contest.publishedQuestionCount}
           </dd>
         </div>
-        <div className="col-span-2">
+        <div className="col-span-2 min-w-0">
           <dt className="text-slate-500">Duração</dt>
           <dd className="mt-1 font-semibold text-slate-900">
             Configurável ao iniciar
@@ -102,13 +102,13 @@ export function PreparingContestCard({
   contest: CatalogContest;
 }) {
   return (
-    <article className="h-full rounded-2xl border border-slate-200 bg-slate-50 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+    <article className="h-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-slate-50 p-6">
+      <div className="flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-semibold uppercase tracking-wide text-slate-600 [overflow-wrap:anywhere]">
             {contest.institution}
           </p>
-          <h3 className="mt-2 text-lg font-bold leading-snug text-slate-900">
+          <h3 className="mt-2 break-words text-lg font-bold leading-snug text-slate-900 [overflow-wrap:anywhere]">
             {contestTitle(contest)}
           </h3>
         </div>
@@ -116,7 +116,7 @@ export function PreparingContestCard({
           Em preparação
         </span>
       </div>
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-4 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">
         {[contest.board, editionLabel(contest)].filter(Boolean).join(" · ")}
       </p>
       <p className="mt-5 border-t border-slate-200 pt-5 text-sm font-medium text-slate-700">

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { createContentSecurityPolicy } from "./src/lib/content-security-policy";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -13,7 +14,10 @@ const nextConfig: NextConfig = {
   async headers() {
     const production = process.env.NODE_ENV === "production";
     const headers = [
-      { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
+      {
+        key: "Content-Security-Policy",
+        value: createContentSecurityPolicy(process.env.NODE_ENV),
+      },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },

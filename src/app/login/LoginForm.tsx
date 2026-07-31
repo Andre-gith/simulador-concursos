@@ -22,6 +22,7 @@ export default function LoginForm() {
       </p>
 
       <form
+        method="post"
         className="mt-7 space-y-5"
         onSubmit={async (event) => {
           event.preventDefault();
@@ -58,7 +59,7 @@ export default function LoginForm() {
             {error}
           </p>
         )}
-        <button className="min-h-12 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
+        <button type="submit" className="min-h-12 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">
           Entrar
         </button>
       </form>

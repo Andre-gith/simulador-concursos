@@ -272,7 +272,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     {available.length === 1 ? "prova" : "provas"}
                   </span>
                 </div>
-                <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-6 grid min-w-0 grid-cols-1 gap-6 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
                   {available.map((contest) => (
                     <AvailableContestCard
                       key={contest.id}
@@ -296,7 +296,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     Conteúdo identificado, ainda sem liberação para simulados. Previsões comunitárias podem mudar e não representam confirmação oficial.
                   </p>
                 </div>
-                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-6 grid min-w-0 grid-cols-1 gap-5 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
                   {preparing.map((contest) => (
                     <PreparingContestCard
                       key={contest.id}

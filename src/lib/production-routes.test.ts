@@ -14,7 +14,9 @@ describe("superfície de produção", () => {
   });
   it("configura headers de segurança", () => {
     const config = read("next.config.ts");
-    for (const header of ["Content-Security-Policy", "X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "Strict-Transport-Security", "frame-ancestors"]) expect(config).toContain(header);
+    const csp = read("src/lib/content-security-policy.ts");
+    for (const header of ["Content-Security-Policy", "X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "Strict-Transport-Security"]) expect(config).toContain(header);
+    expect(csp).toContain("frame-ancestors");
   });
   it("login, registro e importações possuem rate limit", () => {
     expect(read("src/auth.ts")).toContain("enforceRateLimit");
