@@ -5,6 +5,26 @@ const optionalUrl = z.string().url().optional();
 const optionalNonNegative = z.number().finite().nonnegative().optional();
 const optionalPositiveInteger = z.number().int().positive().optional();
 
+const questionVisualAssetSchema = z
+  .object({
+    placement: z.enum(["STATEMENT", "ALTERNATIVE", "SHARED"]).default("STATEMENT"),
+    alternativeLetter: nonEmpty.optional(),
+    assetPath: nonEmpty,
+    sourcePage: z.number().int().positive(),
+    order: z.number().int().nonnegative(),
+    description: nonEmpty.optional(),
+  })
+  .strict()
+  .superRefine((asset, context) => {
+    if (asset.placement === "ALTERNATIVE" && !asset.alternativeLetter) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["alternativeLetter"],
+        message: "Um recurso de alternativa deve informar a letra.",
+      });
+    }
+  });
+
 const alternativeSchema = z
   .object({
     letter: nonEmpty,
@@ -56,6 +76,7 @@ const questionBase = {
   sourcePage: z.number().int().positive().optional(),
   sourceUrl: optionalUrl,
   requiresVisualReview: z.boolean().default(false),
+  visualAssets: z.array(questionVisualAssetSchema).default([]),
 };
 
 const ceQuestionSchema = z
@@ -247,6 +268,28 @@ export const examImportSchema = z
           message: `O bloco "${question.block}" não foi declarado.`,
         });
       }
+
+      if (
+        question.visualAssets.length > 0 &&
+        !question.requiresVisualReview
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["questions", questionIndex, "requiresVisualReview"],
+          message:
+            "Questões com recursos visuais devem exigir revisão visual.",
+        });
+      }
+      if (
+        new Set(question.visualAssets.map((asset) => asset.assetPath)).size !==
+        question.visualAssets.length
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["questions", questionIndex, "visualAssets"],
+          message: "Os caminhos dos recursos visuais não podem se repetir.",
+        });
+      }
     });
   });
 
@@ -279,8 +322,9 @@ export function summarizeExamImport(document: ExamImportDocument) {
     ).length,
     visualQuestions: document.questions.filter(
       (question) =>
-        question.type === "MC" &&
-        question.alternatives.some((alternative) => alternative.isVisual),
+        question.visualAssets.length > 0 ||
+        (question.type === "MC" &&
+          question.alternatives.some((alternative) => alternative.isVisual)),
     ).length,
     reviewStatus: document.reviewStatus,
   };

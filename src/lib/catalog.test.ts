@@ -101,4 +101,21 @@ describe("catálogo da home", () => {
       }),
     ).toBe(false);
   });
+
+  it("deduplica entrada editorial sem cargo quando a especialidade já virou concurso", () => {
+    expect(
+      hasSameCatalogIdentity(
+        {
+          institution: "Transpetro",
+          position: "Profissional Transpetro de Nível Médio — Júnior",
+          specialty: "Manutenção | Mecânica",
+        },
+        {
+          institution: "Transpetro",
+          position: null,
+          specialty: "Manutenção | Mecânica",
+        },
+      ),
+    ).toBe(true);
+  });
 });

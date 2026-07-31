@@ -212,6 +212,14 @@ async function importDocument(
               sourcePage: alternative.sourcePage ?? null,
             }))
           : [];
+      const visualAssets = question.visualAssets.map((asset) => ({
+        placement: asset.placement,
+        alternativeLetter: asset.alternativeLetter ?? null,
+        assetPath: asset.assetPath,
+        sourcePage: asset.sourcePage,
+        order: asset.order,
+        description: asset.description ?? null,
+      }));
 
       const questionData = {
         concursoId: concurso.id,
@@ -242,6 +250,7 @@ async function importDocument(
         },
         include: {
           alternatives: { orderBy: { letter: "asc" } },
+          visualAssets: { orderBy: { order: "asc" } },
         },
       });
 
@@ -273,6 +282,19 @@ async function importDocument(
           existingQuestion.sourcePage === questionData.sourcePage &&
           existingQuestion.requiresVisualReview ===
             questionData.requiresVisualReview &&
+          existingQuestion.visualAssets.length === visualAssets.length &&
+          existingQuestion.visualAssets.every((current, index) => {
+            const expected = visualAssets[index];
+            return (
+              expected !== undefined &&
+              current.placement === expected.placement &&
+              current.alternativeLetter === expected.alternativeLetter &&
+              current.assetPath === expected.assetPath &&
+              current.sourcePage === expected.sourcePage &&
+              current.order === expected.order &&
+              current.description === expected.description
+            );
+          }) &&
           existingQuestion.alternatives.length === sortedAlternatives.length &&
           existingQuestion.alternatives.every((current, index) => {
             const expected = sortedAlternatives[index];
@@ -304,6 +326,9 @@ async function importDocument(
         await transaction.alternative.deleteMany({
           where: { questionId: existingQuestion.id },
         });
+        await transaction.questionVisualAsset.deleteMany({
+          where: { questionId: existingQuestion.id },
+        });
         await transaction.question.update({
           where: { id: existingQuestion.id },
           data: {
@@ -311,6 +336,10 @@ async function importDocument(
             alternatives:
               alternatives.length > 0
                 ? { create: alternatives }
+                : undefined,
+            visualAssets:
+              visualAssets.length > 0
+                ? { create: visualAssets }
                 : undefined,
           },
         });
@@ -322,6 +351,10 @@ async function importDocument(
             alternatives:
               alternatives.length > 0
                 ? { create: alternatives }
+                : undefined,
+            visualAssets:
+              visualAssets.length > 0
+                ? { create: visualAssets }
                 : undefined,
           },
         });

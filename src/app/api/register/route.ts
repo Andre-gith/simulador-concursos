@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -11,6 +12,9 @@ const schema = z.object({
 }).strict();
 
 export async function POST(request: Request) {
+  const client = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const limited = await enforceRateLimit(`register:${client}`, 5, 900);
+  if (!limited.allowed) return NextResponse.json({ error: "Muitas tentativas. Tente novamente mais tarde." }, { status: 429, headers: { "retry-after": String(limited.retryAfterSeconds) } });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(

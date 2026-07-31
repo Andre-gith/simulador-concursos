@@ -82,6 +82,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           edicao: true,
           nivel: true,
           status: true,
+          trustLevel: true,
           banca: {
             select: { name: true },
           },
@@ -110,6 +111,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       pointsCorrect: contest.scoringRule?.pointsCorrect ?? null,
       pointsWrong: contest.scoringRule?.pointsWrong ?? null,
       floorAtZero: contest.scoringRule?.floorAtZero ?? null,
+      trustLevel: "OFFICIAL_CONFIRMED" as const,
     })),
     ...editorialEntries
       .filter(
@@ -143,6 +145,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       hasScoringRule: false,
       publishedQuestionCount: 0,
       subjects: [],
+      trustLevel: entry.trustLevel,
       scoringType: null,
       pointsCorrect: null,
       pointsWrong: null,
@@ -290,7 +293,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     Em preparação
                   </h2>
                   <p className="mt-2 text-sm text-slate-600">
-                    Conteúdo identificado, ainda sem liberação para simulados.
+                    Conteúdo identificado, ainda sem liberação para simulados. Previsões comunitárias podem mudar e não representam confirmação oficial.
                   </p>
                 </div>
                 <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">

@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
+import { privateStorage } from "./storage";
 
 export function resolveImportVisualAsset(
   path: string,
@@ -34,7 +34,7 @@ export async function loadImportVisualAsset(path: string | null) {
   if (!asset) return null;
 
   try {
-    const contents = await readFile(asset.absolutePath);
+    const contents = await privateStorage().get(relative(process.cwd(), asset.absolutePath).replaceAll("\\", "/"));
     return `data:${asset.mimeType};base64,${contents.toString("base64")}`;
   } catch {
     return null;

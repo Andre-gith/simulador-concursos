@@ -1,0 +1,14 @@
+{
+  "records": [
+    {
+      "externalId": "fixture-caixa-ti-2026",
+      "institution": "CEF",
+      "board": "Cesgranrio",
+      "position": "Técnico Bancário",
+      "specialty": "Tecnologia da Informação",
+      "year": 2026,
+      "forecastStatus": "Previsto",
+      "informativeUrl": "https://example.org/catalogo/caixa-ti-2026"
+    }
+  ]
+}

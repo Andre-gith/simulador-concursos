@@ -253,6 +253,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     }
     return true;
   });
+  const [activeMonitors, pendingOfficialChanges, recentMonitorFailures] =
+    await Promise.all([
+      prisma.sourceMonitor.count({ where: { enabled: true } }),
+      prisma.documentChange.count({ where: { status: "WAITING_REVIEW" } }),
+      prisma.monitorRun.count({
+        where: {
+          status: "FAILED",
+          startedAt: { gte: new Date(Date.now() - 7 * 86_400_000) },
+        },
+      }),
+    ]);
 
   return (
     <AdminShell>
@@ -276,6 +287,55 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <Count label="Blocos" value={blocks} />
         <Count label="Cadernos" value={papers} />
         <Count label="Questões em revisão" value={reviewQuestions.length} />
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+          Novo fluxo administrativo
+        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-emerald-950">
+              Importar concurso por URL oficial
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Descoberta, download seguro, extração local, dry-run e revisão em etapas confirmadas.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/admin/importacoes"
+              className="rounded-xl border border-emerald-900 px-5 py-3 font-black text-emerald-900"
+            >
+              Ver importações
+            </Link>
+            <Link
+              href="/admin/importacoes/nova"
+              className="rounded-xl bg-emerald-900 px-5 py-3 font-black text-white"
+            >
+              Iniciar importação
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-emerald-950">Monitoramento oficial</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {activeMonitors} monitores ativos · {pendingOfficialChanges} atualizações pendentes · {recentMonitorFailures} falhas recentes
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link href="/admin/monitoramento/alteracoes" className="rounded-xl border border-emerald-900 px-4 py-3 font-black text-emerald-900">
+              Atualizações oficiais pendentes
+            </Link>
+            <Link href="/admin/monitoramento" className="rounded-xl bg-emerald-900 px-4 py-3 font-black text-white">
+              Abrir monitoramento
+            </Link>
+          </div>
+        </div>
       </section>
 
       <section className="mt-8 rounded-2xl border border-neutral-800 p-5">

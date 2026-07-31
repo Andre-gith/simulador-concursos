@@ -123,6 +123,16 @@ export type ExamExtractorConfiguration =
 export function createAnthropicExamExtractor(
   environment: NodeJS.ProcessEnv = process.env,
 ): ExamExtractorConfiguration {
+  const provider = (environment.AI_PROVIDER ?? "disabled").trim().toLowerCase();
+  if (provider !== "anthropic") {
+    return {
+      configured: false,
+      message:
+        provider === "disabled"
+          ? "A extração local foi concluída. AI_PROVIDER=disabled: nenhuma chamada externa foi executada."
+          : `AI_PROVIDER=${provider} não usa o adaptador Anthropic.`,
+    };
+  }
   const apiKey = environment.ANTHROPIC_API_KEY?.trim();
   const model = environment.ANTHROPIC_MODEL?.trim();
 

@@ -46,6 +46,152 @@ enum ImportStatus {
   FAILED
 }
 
+enum ImportJobStage {
+  CREATED
+  DISCOVERING_DOCUMENTS
+  WAITING_DOCUMENT_SELECTION
+  DOWNLOADING
+  EXTRACTING
+  GENERATING_EXAM
+  VALIDATING
+  DRY_RUN_COMPLETE
+  WAITING_REVIEW
+  FAILED
+  COMPLETED
+}
+
+enum DocumentType {
+  NOTICE
+  EXAM
+  ANSWER_KEY_PRELIMINARY
+  ANSWER_KEY_FINAL
+  RECTIFICATION
+  ANNULMENT_NOTICE
+  RESULT
+  OTHER
+}
+
+enum DocumentStatus {
+  DISCOVERED
+  SELECTED
+  DOWNLOADED
+  VALIDATED
+  REJECTED
+  SUPERSEDED
+}
+
+enum ArtifactType {
+  EXTRACTED_TEXT
+  MANIFEST
+  EXAM_JSON
+  DRY_RUN_REPORT
+  VISUAL_ASSET
+}
+
+enum ImportDestinationType {
+  NEW_CONTEST
+  EDITORIAL_ENTRY
+  EXISTING_CONTEST_NEW_PAPER
+  CANCELLED
+}
+
+enum MonitorFrequency {
+  DAILY
+  WEEKLY
+  MANUAL
+}
+
+enum MonitorRunStatus {
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_WARNINGS
+  FAILED
+  SKIPPED
+  LOCKED
+}
+
+enum DocumentChangeType {
+  NEW_DOCUMENT
+  CONTENT_CHANGED
+  DOCUMENT_REMOVED_FROM_PAGE
+  DOCUMENT_RENAMED
+  CLASSIFICATION_CHANGED
+  UNCHANGED
+}
+
+enum DocumentImpactType {
+  NEW_EXAM
+  NEW_ANSWER_KEY_PRELIMINARY
+  NEW_ANSWER_KEY_FINAL
+  ANSWER_KEY_CHANGED
+  RECTIFICATION
+  ANNULMENT_NOTICE
+  NOTICE_CHANGED
+  NEW_RESULT
+  UNKNOWN
+  NO_EDITORIAL_IMPACT
+}
+
+enum ChangeReviewStatus {
+  WAITING_REVIEW
+  ACKNOWLEDGED
+  IMPORT_JOB_CREATED
+  DISMISSED
+  RESOLVED
+}
+
+enum EditorialProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  APPLIED
+  CONFLICT
+}
+
+enum CatalogTrustLevel {
+  COMMUNITY_UNVERIFIED
+  COMMUNITY_CORROBORATED
+  OFFICIAL_LINK_FOUND
+  OFFICIAL_CONFIRMED
+  ADMIN_CONFIRMED
+}
+
+enum CatalogProviderType {
+  FIXTURE
+  MANUAL
+  GENERIC_JSON
+}
+
+enum CatalogSyncStatus {
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_WARNINGS
+  FAILED
+  SKIPPED
+  LOCKED
+}
+
+enum CatalogExternalRecordStatus {
+  ACTIVE
+  MISSING
+  SUPERSEDED
+  REJECTED
+}
+
+enum CatalogConflictType {
+  PROBABLE_DUPLICATE
+  PROTECTED_FIELD
+  INCOMPATIBLE_IDENTITY
+  INVALID_RECORD
+}
+
+enum CatalogConflictStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  RESOLVED
+}
+
 enum AttemptFinishReason {
   MANUAL
   TIME_EXPIRED
@@ -69,25 +215,36 @@ model Banca {
   catalogEntries EditorialCatalogEntry[]
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @default(now()) @updatedAt
+  sourceMonitors SourceMonitor[]
 }
 
 /// Metadados de oportunidades ainda sem edital/prova suficientemente
 /// confirmados para criar um Concurso. Nunca contém questões.
 model EditorialCatalogEntry {
-  id            String            @id @default(cuid())
-  catalogKey    String            @unique
-  bancaId       String?
-  banca         Banca?            @relation(fields: [bancaId], references: [id])
-  orgao         String
-  title         String
-  cargo         String?
-  especialidade String?
-  ano           Int?
-  edicao        String?
-  nivel         EducationLevel?
-  status        PublicationStatus @default(IN_REVIEW)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @default(now()) @updatedAt
+  id                      String                  @id @default(cuid())
+  catalogKey              String                  @unique
+  bancaId                 String?
+  banca                   Banca?                  @relation(fields: [bancaId], references: [id])
+  orgao                   String
+  title                   String
+  cargo                   String?
+  especialidade           String?
+  ano                     Int?
+  edicao                  String?
+  nivel                   EducationLevel?
+  status                  PublicationStatus       @default(IN_REVIEW)
+  trustLevel              CatalogTrustLevel       @default(ADMIN_CONFIRMED)
+  possibleOfficialUrl     String?
+  informativeUrl          String?
+  estimatedDate           DateTime?
+  forecastStatus          String?
+  manuallyConfirmedFields Json                    @default("[]")
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @default(now()) @updatedAt
+  destinationImportJobs   ImportJob[]             @relation("ImportDestinationEditorial")
+  sourceMonitors          SourceMonitor[]
+  catalogExternalRecords  CatalogExternalRecord[]
+  catalogConflicts        CatalogConflict[]
 
   @@index([bancaId])
   @@index([orgao])
@@ -109,12 +266,15 @@ model Concurso {
   officialPageUrl String?
   status          PublicationStatus @default(PUBLISHED)
 
-  scoringRule    ScoringRule?
-  blocks         ExamBlock[]
-  papers         ExamPaper[]
-  questions      Question[]
-  importJobs     ImportJob[]
-  simulatedExams SimulatedExam[]
+  scoringRule           ScoringRule?
+  blocks                ExamBlock[]
+  papers                ExamPaper[]
+  questions             Question[]
+  importJobs            ImportJob[]
+  destinationImportJobs ImportJob[]               @relation("ImportDestinationContest")
+  simulatedExams        SimulatedExam[]
+  sourceMonitors        SourceMonitor[]
+  editorialProposals    EditorialChangeProposal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -281,13 +441,132 @@ model Alternative {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String?
-  passwordHash String?
-  role         UserRole  @default(USER)
-  attempts     Attempt[]
-  createdAt    DateTime  @default(now())
+  id                       String                    @id @default(cuid())
+  email                    String                    @unique
+  name                     String?
+  passwordHash             String?
+  role                     UserRole                  @default(USER)
+  attempts                 Attempt[]
+  importJobs               ImportJob[]
+  createdMonitors          SourceMonitor[]           @relation("MonitorCreator")
+  reviewedProposals        EditorialChangeProposal[] @relation("ProposalReviewer")
+  createdCatalogSources    CatalogSource[]           @relation("CatalogSourceCreator")
+  resolvedCatalogConflicts CatalogConflict[]         @relation("CatalogConflictReviewer")
+  createdAt                DateTime                  @default(now())
+}
+
+model CatalogSource {
+  id                  String                  @id @default(cuid())
+  name                String
+  providerType        CatalogProviderType
+  enabled             Boolean                 @default(true)
+  frequency           MonitorFrequency
+  trustLevel          CatalogTrustLevel       @default(COMMUNITY_UNVERIFIED)
+  baseUrl             String?
+  config              Json?
+  supportedFields     Json?
+  notes               String?                 @db.Text
+  lastSyncedAt        DateTime?
+  nextSyncAt          DateTime?
+  lastSuccessfulAt    DateTime?
+  lastErrorAt         DateTime?
+  lastError           String?                 @db.Text
+  consecutiveFailures Int                     @default(0)
+  lockedAt            DateTime?
+  lockedBy            String?
+  lockExpiresAt       DateTime?
+  createdById         String
+  createdBy           User                    @relation("CatalogSourceCreator", fields: [createdById], references: [id])
+  runs                CatalogSyncRun[]
+  records             CatalogExternalRecord[]
+  conflicts           CatalogConflict[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @default(now()) @updatedAt
+
+  @@index([enabled, nextSyncAt])
+  @@index([providerType])
+}
+
+model CatalogSyncRun {
+  id              String                  @id @default(cuid())
+  catalogSourceId String
+  catalogSource   CatalogSource           @relation(fields: [catalogSourceId], references: [id], onDelete: Cascade)
+  status          CatalogSyncStatus
+  lockToken       String?
+  dryRun          Boolean                 @default(false)
+  startedAt       DateTime                @default(now())
+  finishedAt      DateTime?
+  receivedCount   Int                     @default(0)
+  createdCount    Int                     @default(0)
+  updatedCount    Int                     @default(0)
+  unchangedCount  Int                     @default(0)
+  conflictCount   Int                     @default(0)
+  rejectedCount   Int                     @default(0)
+  attempts        Int                     @default(1)
+  cursor          Json?
+  warnings        Json?
+  error           String?                 @db.Text
+  records         CatalogExternalRecord[]
+  createdAt       DateTime                @default(now())
+
+  @@index([catalogSourceId, startedAt])
+  @@index([status])
+}
+
+model CatalogExternalRecord {
+  id                      String                      @id @default(cuid())
+  catalogSourceId         String
+  catalogSource           CatalogSource               @relation(fields: [catalogSourceId], references: [id], onDelete: Cascade)
+  catalogSyncRunId        String
+  catalogSyncRun          CatalogSyncRun              @relation(fields: [catalogSyncRunId], references: [id], onDelete: Cascade)
+  externalId              String
+  version                 Int                         @default(1)
+  payloadHash             String
+  rawPayload              Json
+  normalizedPayload       Json
+  normalizedIdentity      String
+  status                  CatalogExternalRecordStatus @default(ACTIVE)
+  editorialCatalogEntryId String?
+  editorialCatalogEntry   EditorialCatalogEntry?      @relation(fields: [editorialCatalogEntryId], references: [id])
+  supersedesId            String?
+  supersedes              CatalogExternalRecord?      @relation("CatalogRecordVersions", fields: [supersedesId], references: [id])
+  supersededBy            CatalogExternalRecord[]     @relation("CatalogRecordVersions")
+  lastSeenAt              DateTime                    @default(now())
+  consecutiveMissing      Int                         @default(0)
+  conflicts               CatalogConflict[]
+  createdAt               DateTime                    @default(now())
+
+  @@unique([catalogSourceId, externalId, version])
+  @@index([catalogSourceId, externalId, status])
+  @@index([payloadHash])
+  @@index([normalizedIdentity])
+  @@index([editorialCatalogEntryId])
+}
+
+model CatalogConflict {
+  id                      String                 @id @default(cuid())
+  catalogSourceId         String
+  catalogSource           CatalogSource          @relation(fields: [catalogSourceId], references: [id], onDelete: Cascade)
+  catalogExternalRecordId String
+  catalogExternalRecord   CatalogExternalRecord  @relation(fields: [catalogExternalRecordId], references: [id], onDelete: Cascade)
+  editorialCatalogEntryId String?
+  editorialCatalogEntry   EditorialCatalogEntry? @relation(fields: [editorialCatalogEntryId], references: [id])
+  type                    CatalogConflictType
+  status                  CatalogConflictStatus  @default(PENDING)
+  field                   String?
+  currentValue            Json?
+  proposedValue           Json?
+  details                 Json?
+  reviewedById            String?
+  reviewedBy              User?                  @relation("CatalogConflictReviewer", fields: [reviewedById], references: [id])
+  reviewedAt              DateTime?
+  resolutionNote          String?                @db.Text
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @default(now()) @updatedAt
+
+  @@index([status, type])
+  @@index([catalogSourceId])
+  @@index([editorialCatalogEntryId])
 }
 
 model SimulatedExam {
@@ -349,17 +628,236 @@ model AttemptAnswer {
 }
 
 model ImportJob {
-  id           String       @id @default(cuid())
-  concursoId   String
-  concurso     Concurso     @relation(fields: [concursoId], references: [id])
-  pdfUrl       String
-  gabaritoUrl  String?
-  status       ImportStatus @default(PENDING)
-  rawExtracted Json?
-  errorMessage String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @default(now()) @updatedAt
+  id                          String                 @id @default(cuid())
+  concursoId                  String?
+  concurso                    Concurso?              @relation(fields: [concursoId], references: [id])
+  pdfUrl                      String
+  gabaritoUrl                 String?
+  status                      ImportStatus           @default(PENDING)
+  rawExtracted                Json?
+  errorMessage                String?
+  idempotencyKey              String?                @unique
+  officialUrl                 String?
+  board                       String?
+  institution                 String?
+  position                    String?
+  specialty                   String?
+  year                        Int?
+  edition                     String?
+  paperCode                   String?
+  adminNotes                  String?                @db.Text
+  stage                       ImportJobStage         @default(CREATED)
+  previousStage               ImportJobStage?
+  warnings                    Json?
+  report                      Json?
+  startedAt                   DateTime?
+  finishedAt                  DateTime?
+  cancelledAt                 DateTime?
+  destinationType             ImportDestinationType?
+  destinationEditorialEntryId String?
+  destinationEditorialEntry   EditorialCatalogEntry? @relation("ImportDestinationEditorial", fields: [destinationEditorialEntryId], references: [id])
+  destinationContestId        String?
+  destinationContest          Concurso?              @relation("ImportDestinationContest", fields: [destinationContestId], references: [id])
+  importResult                Json?
+  sourceMonitorId             String?
+  sourceMonitor               SourceMonitor?         @relation(fields: [sourceMonitorId], references: [id])
+  documentChangeId            String?
+  documentChange              DocumentChange?        @relation(fields: [documentChangeId], references: [id])
+  isUpdate                    Boolean                @default(false)
+  adminUserId                 String?
+  adminUser                   User?                  @relation(fields: [adminUserId], references: [id])
+  sourceDocuments             SourceDocument[]
+  artifacts                   ImportArtifact[]
+  auditEvents                 ImportAuditEvent[]
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @default(now()) @updatedAt
 
   @@index([concursoId])
   @@index([status])
+  @@index([stage])
+  @@index([adminUserId])
+  @@index([destinationContestId])
+  @@index([destinationEditorialEntryId])
+  @@index([sourceMonitorId])
+  @@index([documentChangeId])
+}
+
+model SourceDocument {
+  id                 String                    @id @default(cuid())
+  importJobId        String
+  importJob          ImportJob                 @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  documentType       DocumentType
+  sourceUrl          String
+  originalFilename   String?
+  description        String?
+  paperCode          String?
+  displayOrder       Int                       @default(0)
+  localPath          String?
+  mimeType           String?
+  sha256             String?
+  size               Int?
+  publishedAt        DateTime?
+  downloadedAt       DateTime?
+  version            Int                       @default(1)
+  status             DocumentStatus            @default(DISCOVERED)
+  metadata           Json?
+  supersedesId       String?
+  supersedes         SourceDocument?           @relation("DocumentVersions", fields: [supersedesId], references: [id])
+  supersededBy       SourceDocument[]          @relation("DocumentVersions")
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @default(now()) @updatedAt
+  monitorChanges     DocumentChange[]          @relation("CurrentChangeDocument")
+  previousChanges    DocumentChange[]          @relation("PreviousChangeDocument")
+  editorialProposals EditorialChangeProposal[]
+
+  @@unique([importJobId, sourceUrl, documentType, version])
+  @@index([importJobId, status])
+  @@index([sha256])
+  @@index([importJobId, displayOrder])
+}
+
+model ImportArtifact {
+  id           String       @id @default(cuid())
+  importJobId  String
+  importJob    ImportJob    @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  artifactType ArtifactType
+  localPath    String
+  sha256       String
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+
+  @@unique([importJobId, artifactType, sha256])
+  @@index([importJobId, artifactType])
+}
+
+model ImportAuditEvent {
+  id          String    @id @default(cuid())
+  importJobId String
+  importJob   ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  adminUserId String?
+  action      String
+  details     Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([importJobId, createdAt])
+  @@index([adminUserId])
+}
+
+model SourceMonitor {
+  id                      String                 @id @default(cuid())
+  name                    String
+  sourceUrl               String
+  adapterType             String
+  institution             String
+  boardId                 String?
+  board                   Banca?                 @relation(fields: [boardId], references: [id])
+  editorialCatalogEntryId String?
+  editorialCatalogEntry   EditorialCatalogEntry? @relation(fields: [editorialCatalogEntryId], references: [id])
+  contestId               String?
+  contest                 Concurso?              @relation(fields: [contestId], references: [id])
+  enabled                 Boolean                @default(true)
+  frequency               MonitorFrequency
+  notes                   String?                @db.Text
+  lastCheckedAt           DateTime?
+  nextCheckAt             DateTime?
+  lastSuccessfulAt        DateTime?
+  lastErrorAt             DateTime?
+  lastError               String?                @db.Text
+  consecutiveFailures     Int                    @default(0)
+  lockedAt                DateTime?
+  lockedBy                String?
+  lockExpiresAt           DateTime?
+  lastManualRunAt         DateTime?
+  createdById             String
+  createdBy               User                   @relation("MonitorCreator", fields: [createdById], references: [id])
+  runs                    MonitorRun[]
+  importJobs              ImportJob[]
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @default(now()) @updatedAt
+
+  @@index([enabled, nextCheckAt])
+  @@index([contestId])
+  @@index([editorialCatalogEntryId])
+  @@index([boardId])
+}
+
+model MonitorRun {
+  id                  String           @id @default(cuid())
+  sourceMonitorId     String
+  sourceMonitor       SourceMonitor    @relation(fields: [sourceMonitorId], references: [id], onDelete: Cascade)
+  status              MonitorRunStatus
+  lockToken           String?
+  startedAt           DateTime         @default(now())
+  finishedAt          DateTime?
+  documentsDiscovered Int              @default(0)
+  documentsNew        Int              @default(0)
+  documentsChanged    Int              @default(0)
+  documentsUnchanged  Int              @default(0)
+  warnings            Json?
+  error               String?          @db.Text
+  attempts            Int              @default(1)
+  dryRun              Boolean          @default(false)
+  changes             DocumentChange[]
+  createdAt           DateTime         @default(now())
+
+  @@index([sourceMonitorId, startedAt])
+  @@index([status])
+}
+
+model DocumentChange {
+  id                 String                    @id @default(cuid())
+  monitorRunId       String
+  monitorRun         MonitorRun                @relation(fields: [monitorRunId], references: [id], onDelete: Cascade)
+  sourceDocumentId   String?
+  sourceDocument     SourceDocument?           @relation("CurrentChangeDocument", fields: [sourceDocumentId], references: [id])
+  previousDocumentId String?
+  previousDocument   SourceDocument?           @relation("PreviousChangeDocument", fields: [previousDocumentId], references: [id])
+  changeType         DocumentChangeType
+  impactType         DocumentImpactType
+  status             ChangeReviewStatus        @default(WAITING_REVIEW)
+  metadata           Json?
+  importJobs         ImportJob[]
+  proposals          EditorialChangeProposal[]
+  notification       AdminNotification?
+  createdAt          DateTime                  @default(now())
+
+  @@index([monitorRunId])
+  @@index([status, impactType])
+  @@index([sourceDocumentId])
+}
+
+model EditorialChangeProposal {
+  id               String                  @id @default(cuid())
+  documentChangeId String
+  documentChange   DocumentChange          @relation(fields: [documentChangeId], references: [id], onDelete: Cascade)
+  contestId        String
+  contest          Concurso                @relation(fields: [contestId], references: [id])
+  questionId       String?
+  field            String
+  previousValue    Json?
+  proposedValue    Json?
+  sourceDocumentId String
+  sourceDocument   SourceDocument          @relation(fields: [sourceDocumentId], references: [id])
+  sourcePage       Int?
+  status           EditorialProposalStatus @default(PENDING)
+  reviewedById     String?
+  reviewedBy       User?                   @relation("ProposalReviewer", fields: [reviewedById], references: [id])
+  reviewedAt       DateTime?
+  createdAt        DateTime                @default(now())
+
+  @@index([documentChangeId])
+  @@index([contestId, status])
+  @@index([questionId])
+}
+
+model AdminNotification {
+  id               String         @id @default(cuid())
+  documentChangeId String         @unique
+  documentChange   DocumentChange @relation(fields: [documentChangeId], references: [id], onDelete: Cascade)
+  title            String
+  severity         String
+  readAt           DateTime?
+  createdAt        DateTime       @default(now())
+
+  @@index([readAt, severity])
 }

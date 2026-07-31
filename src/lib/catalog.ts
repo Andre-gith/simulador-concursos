@@ -28,6 +28,7 @@ export type CatalogContest = {
   pointsCorrect: number | null;
   pointsWrong: number | null;
   floorAtZero: boolean | null;
+  trustLevel?: "COMMUNITY_UNVERIFIED" | "COMMUNITY_CORROBORATED" | "OFFICIAL_LINK_FOUND" | "OFFICIAL_CONFIRMED" | "ADMIN_CONFIRMED";
 };
 
 export type CatalogFilter =
@@ -52,11 +53,16 @@ export function hasSameCatalogIdentity(
 ) {
   const identityPart = (value: string | null) =>
     (value ?? "").normalize("NFC").trim().toLocaleLowerCase("pt-BR");
+  const leftPosition = identityPart(left.position);
+  const rightPosition = identityPart(right.position);
+  const leftSpecialty = identityPart(left.specialty);
+  const rightSpecialty = identityPart(right.specialty);
 
   return (
     identityPart(left.institution) === identityPart(right.institution) &&
-    identityPart(left.position) === identityPart(right.position) &&
-    identityPart(left.specialty) === identityPart(right.specialty)
+    leftSpecialty === rightSpecialty &&
+    (leftPosition === rightPosition ||
+      (Boolean(leftSpecialty) && (!leftPosition || !rightPosition)))
   );
 }
 

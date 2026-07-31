@@ -120,7 +120,9 @@ export function PreparingContestCard({
         {[contest.board, editionLabel(contest)].filter(Boolean).join(" · ")}
       </p>
       <p className="mt-5 border-t border-slate-200 pt-5 text-sm font-medium text-slate-700">
-        Prova e gabarito em revisão
+        {contest.trustLevel?.startsWith("COMMUNITY")
+          ? "Informação comunitária não confirmada oficialmente. Não há simulado disponível."
+          : "Prova e gabarito em revisão"}
       </p>
     </article>
   );

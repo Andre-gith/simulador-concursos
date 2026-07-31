@@ -1,11 +1,11 @@
-import { readFile } from "node:fs/promises";
-
+import { relative } from "node:path";
 import { PublicationStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveImportVisualAsset } from "@/lib/visualAssets";
+import { privateStorage } from "@/lib/storage";
 
 export async function GET(
   _request: Request,
@@ -34,8 +34,8 @@ export async function GET(
     return new NextResponse("Recurso não encontrado.", { status: 404 });
   }
   try {
-    const body = await readFile(resolved.absolutePath);
-    return new NextResponse(body, {
+    const body = await privateStorage().get(relative(process.cwd(), resolved.absolutePath).replaceAll("\\", "/"));
+    return new NextResponse(new Uint8Array(body), {
       headers: {
         "Content-Type": resolved.mimeType,
         "Cache-Control": "private, no-store",

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
+import { enforceRateLimit } from "./lib/rate-limit";
 
 export async function authorizeCredentials(credentials: unknown) {
   const parsed = z
@@ -13,6 +14,8 @@ export async function authorizeCredentials(credentials: unknown) {
     })
     .safeParse(credentials);
   if (!parsed.success) return null;
+  const limited = await enforceRateLimit(`login:${parsed.data.email}`, 10, 900);
+  if (!limited.allowed) return null;
 
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
@@ -38,7 +41,13 @@ export async function authorizeCredentials(credentials: unknown) {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" },
+    },
+  },
   pages: { signIn: "/login" },
   providers: [
     Credentials({

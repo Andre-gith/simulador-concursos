@@ -1,0 +1,104 @@
+name: nota-banca-predeploy
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  DATABASE_URL: postgresql://predeploy:predeploy-db-only@postgres:5432/nota_banca_predeploy
+  AUTH_SECRET: predeploy-only-auth-secret-0123456789-abcdefghijklmnopqrstuvwxyz
+  AUTH_URL: http://localhost:3100
+  NEXT_PUBLIC_APP_URL: http://localhost:3100
+  MONITOR_CRON_SECRET: predeploy-only-monitor-secret-0123456789
+  CATALOG_SYNC_SECRET: predeploy-only-catalog-secret-0123456789
+  RATE_LIMIT_PROVIDER: redis
+  REDIS_URL: redis://:predeploy-redis-only@redis:6379
+  JOB_EXECUTOR: queue
+  QUEUE_PREFIX: nota-banca-predeploy
+  STORAGE_PROVIDER: s3
+  STORAGE_BUCKET: nota-banca-predeploy
+  STORAGE_REGION: us-east-1
+  STORAGE_ENDPOINT: http://minio:9000
+  STORAGE_FORCE_PATH_STYLE: "true"
+  STORAGE_ACCESS_KEY_ID: predeploy-minio
+  STORAGE_SECRET_ACCESS_KEY: predeploy-minio-only-secret
+  STORAGE_PREFIX: private
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nota_banca_predeploy
+      POSTGRES_USER: predeploy
+      POSTGRES_PASSWORD: predeploy-db-only
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U predeploy -d nota_banca_predeploy"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "predeploy-redis-only"]
+    ports:
+      - "56379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "predeploy-redis-only", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: predeploy-minio
+      MINIO_ROOT_PASSWORD: predeploy-minio-only-secret
+    ports:
+      - "59000:9000"
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        until mc alias set isolated http://minio:9000 predeploy-minio predeploy-minio-only-secret; do sleep 1; done
+        mc mb --ignore-existing isolated/nota-banca-predeploy
+        mc anonymous set none isolated/nota-banca-predeploy
+
+  web:
+    image: nota-de-banca-web:predeploy
+    environment: *app-environment
+    ports:
+      - "3100:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  worker:
+    image: nota-de-banca-worker:predeploy
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
