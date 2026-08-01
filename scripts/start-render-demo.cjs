@@ -20,7 +20,7 @@ if (process.env.RATE_LIMIT_PROVIDER !== "memory") fail("RATE_LIMIT_PROVIDER=memo
 const missing = required.filter((key) => !process.env[key]?.trim());
 if (missing.length) fail(`Configuração incompleta: ${missing.join(", ")}.`);
 
-const prismaCli = resolve("node_modules/prisma/build/index.js");
+const prismaCli = require.resolve("prisma/build/index.js");
 const migration = spawnSync(process.execPath, [prismaCli, "migrate", "deploy"], {
   stdio: "inherit",
   env: process.env,
