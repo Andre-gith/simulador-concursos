@@ -1,12 +1,13 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { contentTypeFor, validateStoredImportFile } from "@/lib/official-import/file-access";
-import { privateStorage } from "@/lib/storage";
+import { isPrivateStorageConfigured, privateStorage } from "@/lib/storage";
 
 export async function GET(request: Request, { params }: { params: Promise<{ jobId: string; artifactId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return new Response("Não autenticado.", { status: 401 });
   if (session.user.role !== "ADMIN") return new Response("Acesso negado.", { status: 403 });
+  if (!isPrivateStorageConfigured()) return new Response("Arquivo indisponível.", { status: 503 });
   const { jobId, artifactId } = await params;
   const artifact = await prisma.importArtifact.findFirst({ where: { id: artifactId, importJobId: jobId } });
   if (!artifact) return new Response("Artefato não encontrado.", { status: 404 });

@@ -71,9 +71,59 @@ Para o primeiro deploy:
 
 O Web permanece free e, por isso, não recebe `preDeployCommand`. A migration pertence somente ao Worker para evitar duas execuções concorrentes.
 
+## Deploy gratuito de demonstração
+
+Para uma demonstração sem cobrança, selecione explicitamente **Blueprint Path `render.demo.yaml`**. Não use `render.yaml`, pois o Blueprint completo contém um Background Worker pago.
+
+O Blueprint de demonstração cria somente:
+
+- `nota-de-banca-demo-web`, Web Docker free;
+- `nota-de-banca-demo-postgres`, PostgreSQL 16 free.
+
+Não são criados Worker, Redis/Key Value ou Cron Jobs. `DEPLOYMENT_MODE=demo`, `JOB_EXECUTOR=disabled`, `AI_PROVIDER=disabled` e `RATE_LIMIT_PROVIDER=memory` são fixos. Login, registro, simulados, resultados, histórico e administração básica permanecem disponíveis. Importações, downloads/extratos automáticos, geração de `exam.json`, dry-run, monitoramento e sincronização de catálogo retornam indisponibilidade controlada e não iniciam trabalhos.
+
+Web e PostgreSQL gratuitos possuem limitações. O site pode entrar em repouso e a primeira resposta pode ser lenta. O banco gratuito não é indicado para dados críticos nem substitui backups. Rate limiting em memória é aceitável apenas para esta única instância e não serve para escala horizontal.
+
+O container demo executa, nessa ordem:
+
+1. validação explícita das variáveis do modo demo;
+2. `prisma migrate deploy`, idempotente e compatível com PostgreSQL vazio;
+3. `node server.js`.
+
+Falha de configuração ou migration impede o servidor de iniciar. O fluxo não usa `db push`, reset ou seed e não modifica o startup de `Dockerfile.web`.
+
+Storage definitivo deve permanecer externo e privado. Sem credenciais S3 completas, páginas que não dependem de arquivos podem iniciar, mas readiness e rotas de artefatos indicam storage indisponível. Consulte `docs/VISUAL_ASSETS_DEMO_AUDIT.md` antes de demonstrar questões visuais.
+
+Variáveis manuais do Blueprint demo:
+
+```text
+AUTH_SECRET
+AUTH_URL
+NEXT_PUBLIC_APP_URL
+STORAGE_BUCKET
+STORAGE_REGION
+STORAGE_ENDPOINT
+STORAGE_ACCESS_KEY_ID
+STORAGE_SECRET_ACCESS_KEY
+STORAGE_FORCE_PATH_STYLE
+APP_VERSION
+```
+
+Nenhuma credencial deve ser adicionada ao YAML ou ao Git.
+
+### Migração futura para a arquitetura completa
+
+```text
+render.demo.yaml
+        ↓
+render.yaml
+```
+
+Ao migrar, configure Redis, crie o Worker, troque para `DEPLOYMENT_MODE=full`, `JOB_EXECUTOR=queue` e `RATE_LIMIT_PROVIDER=redis`, configure os segredos dos crons, valide o storage privado e execute `npm run production:check` novamente. As migrations voltam a ser responsabilidade exclusiva do pre-deploy do Worker.
+
 ## Porta e encerramento
 
-`Dockerfile.web` define `HOSTNAME=0.0.0.0` e aceita `PORT` fornecida pelo Render, substituindo o valor padrão `3000`. O Web possui health check em `/api/health` e atraso máximo de encerramento de 30 segundos.
+`Dockerfile.web` define `HOSTNAME=0.0.0.0` e aceita `PORT` fornecida pelo Render, substituindo o valor padrão `3000`. O Web possui health check em `/api/health`.
 
 O Worker processa `SIGTERM`, tem concorrência inicial 1 e recebe até 300 segundos para finalizar um job antes de encerramento forçado.
 

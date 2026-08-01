@@ -13,7 +13,7 @@ type Row = { key: number; url: string; type: string; description: string; paperC
 
 type Defaults = { editorialCatalogEntryId?: string; institution?: string; board?: string; position?: string; specialty?: string; year?: number; edition?: string };
 
-export function OfficialImportForm({ defaults = {} }: { defaults?: Defaults }) {
+export function OfficialImportForm({ defaults = {}, disabled = false }: { defaults?: Defaults; disabled?: boolean }) {
   const [mode, setMode] = useState<"page" | "direct">("page");
   const [sequence, setSequence] = useState(2);
   const [rows, setRows] = useState<Row[]>([
@@ -26,6 +26,7 @@ export function OfficialImportForm({ defaults = {} }: { defaults?: Defaults }) {
     const next = [...rows]; [next[index], next[target]] = [next[target], next[index]]; setRows(next);
   };
   return <form action={mode === "page" ? analyzeSourceAction : createManualImportAction} className="mt-7">
+    <fieldset disabled={disabled} className="disabled:opacity-60">
     <div className="grid gap-3 sm:grid-cols-2">
       <button type="button" onClick={() => setMode("page")} className={`rounded-xl border p-4 text-left ${mode === "page" ? "border-emerald-800 bg-emerald-50" : "border-stone-200 bg-white"}`}><b>A. Página oficial</b><span className="mt-1 block text-sm">Descoberta automática de documentos.</span></button>
       <button type="button" onClick={() => setMode("direct")} className={`rounded-xl border p-4 text-left ${mode === "direct" ? "border-emerald-800 bg-emerald-50" : "border-stone-200 bg-white"}`}><b>B. URLs diretas</b><span className="mt-1 block text-sm">Classificação manual de PDFs oficiais.</span></button>
@@ -57,7 +58,8 @@ export function OfficialImportForm({ defaults = {} }: { defaults?: Defaults }) {
       </div>)}
       <button type="button" onClick={() => { setRows([...rows, { key: sequence, url: "", type: "OTHER", description: "", paperCode: "", publishedAt: "" }]); setSequence(sequence + 1); }} disabled={rows.length >= 12} className="rounded-xl border border-emerald-800 px-4 py-2 font-bold text-emerald-900">+ Adicionar URL</button>
     </div>}
-    <div className="mt-6 flex justify-end"><button className="rounded-xl bg-emerald-900 px-6 py-3 font-black text-white">{mode === "page" ? "Analisar URL" : "Validar todas as URLs"}</button></div>
+    <div className="mt-6 flex justify-end"><button className="rounded-xl bg-emerald-900 px-6 py-3 font-black text-white disabled:cursor-not-allowed">{mode === "page" ? "Analisar URL" : "Validar todas as URLs"}</button></div>
+    </fieldset>
   </form>;
 }
 

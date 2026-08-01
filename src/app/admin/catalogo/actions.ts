@@ -8,11 +8,16 @@ import { syncCatalogSource } from "@/lib/catalog-sync/service";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { jobExecutor } from "@/lib/job-executor";
+import { DEMO_AUTOMATION_MESSAGE, isDemoDeployment } from "@/lib/deployment-mode";
 
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
+const blockDemo = (path: string) => {
+  if (isDemoDeployment()) redirect(`${path}?error=${encodeURIComponent(DEMO_AUTOMATION_MESSAGE)}`);
+};
 
 export async function createCatalogSourceAction(data: FormData) {
   const session = await requireAdmin();
+  blockDemo("/admin/catalogo");
   const providerType = text(data, "providerType") as CatalogProviderType;
   const frequency = text(data, "frequency") as MonitorFrequency;
   const trustLevel = text(data, "trustLevel") as CatalogTrustLevel;
@@ -33,6 +38,7 @@ export async function createCatalogSourceAction(data: FormData) {
 export async function runCatalogSourceAction(data: FormData) {
   const session = await requireAdmin();
   const id = text(data, "sourceId");
+  blockDemo(`/admin/catalogo/fontes/${id}`);
   if (!(await enforceRateLimit(`admin:catalog-sync:${session.user.id}`, 10, 600)).allowed) redirect(`/admin/catalogo/fontes/${id}?error=Limite de sincronizações excedido`);
   try { const executor = jobExecutor(); const dryRun = data.get("dryRun") === "true"; if (executor.mode === "queue") await executor.enqueue({ type: "CATALOG_SYNC_SOURCE", payload: { version: 1, catalogSourceId: id, scheduledAt: new Date().toISOString(), dryRun } }); else await executor.execute("catalog-sync", { sourceId: id }, () => syncCatalogSource(prisma, id, { dryRun })); }
   catch (error) { redirect(`/admin/catalogo/fontes/${id}?error=${encodeURIComponent(error instanceof Error ? error.message : "Falha na sincronização")}`); }

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveImportVisualAsset } from "@/lib/visualAssets";
-import { privateStorage } from "@/lib/storage";
+import { isPrivateStorageConfigured, privateStorage } from "@/lib/storage";
 
 export async function GET(
   _request: Request,
@@ -27,6 +27,7 @@ export async function GET(
   if (asset.question.status !== PublicationStatus.PUBLISHED && !isAdmin) {
     return new NextResponse("Recurso não encontrado.", { status: 404 });
   }
+  if (!isPrivateStorageConfigured()) return new NextResponse("Recurso indisponível.", { status: 503 });
 
   const resolved = resolveImportVisualAsset(asset.assetPath);
   if (!resolved) {

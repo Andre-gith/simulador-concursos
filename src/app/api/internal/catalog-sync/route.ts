@@ -5,9 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { jobExecutor } from "@/lib/job-executor";
 import { enqueueDueCatalogSources } from "@/lib/jobs/schedulers";
+import { demoUnavailableResponse, isDemoDeployment } from "@/lib/deployment-mode";
 
 export const maxDuration = 60;
 export async function POST(request: NextRequest) {
+  if (isDemoDeployment()) return demoUnavailableResponse();
   if (!isCatalogCronAuthorized(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }

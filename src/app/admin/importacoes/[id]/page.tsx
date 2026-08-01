@@ -7,12 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { classifyAndDownloadAction, dryRunAction, extractAction, provideExamJsonAction, retryFailedStageAction, selectDestinationAction, validateExamAction } from "../actions";
 import { ImportForReviewButton } from "./ImportForReviewButton";
 import { JobPolling } from "./JobPolling";
+import { DEMO_AUTOMATION_MESSAGE, isDemoDeployment } from "@/lib/deployment-mode";
 
 const steps = ["Origem", "Documentos", "Download", "Extração", "exam.json", "Dry-run", "Destino", "Importação", "Revisão"];
 const progress: Record<string, number> = { CREATED: 0, DISCOVERING_DOCUMENTS: 0, WAITING_DOCUMENT_SELECTION: 1, DOWNLOADING: 2, EXTRACTING: 3, GENERATING_EXAM: 4, VALIDATING: 5, DRY_RUN_COMPLETE: 5, WAITING_REVIEW: 6, COMPLETED: 8, FAILED: 0 };
 
 export default async function ImportJobPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; notice?: string }> }) {
   await requireAdmin(); const [{ id }, query] = await Promise.all([params, searchParams]);
+  const demo = isDemoDeployment();
   const job = await prisma.importJob.findUnique({ where: { id }, include: {
     sourceDocuments: { orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] },
     artifacts: { orderBy: { createdAt: "desc" } }, auditEvents: { orderBy: { createdAt: "desc" }, take: 30 },
@@ -37,9 +39,10 @@ export default async function ImportJobPage({ params, searchParams }: { params: 
     <JobPolling active={["WAITING", "RUNNING"].includes(String(queueReport.queueStatus ?? "")) || ["DISCOVERING_DOCUMENTS", "DOWNLOADING", "EXTRACTING", "GENERATING_EXAM", "VALIDATING"].includes(job.stage)} />
     <div className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">{steps.map((step, index) => <div key={step} className={`rounded-xl border p-3 text-center text-xs font-black ${index <= current ? "border-emerald-700 bg-emerald-900 text-white" : "border-amber-200 bg-[#fffdf5] text-slate-500"}`}>{index + 1}. {step}</div>)}</div>
     {(query.error || job.errorMessage) && <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-800">{query.error ?? job.errorMessage}</p>}
+    {demo && <p className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 font-bold text-amber-900">{DEMO_AUTOMATION_MESSAGE}</p>}
     {query.notice && <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 font-semibold text-amber-900">{query.notice}</p>}
     {Array.isArray(job.warnings) && job.warnings.length > 0 && <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><b>Avisos</b><ul className="mt-2 list-disc pl-5">{job.warnings.map((warning) => <li key={String(warning)}>{String(warning)}</li>)}</ul></div>}
-    {job.stage === "FAILED" && <form action={retryFailedStageAction} className="mt-4"><input type="hidden" name="jobId" value={job.id} /><button className="rounded-xl border border-red-300 px-4 py-2 font-black text-red-800">Repetir etapa que falhou</button></form>}
+    {job.stage === "FAILED" && <form action={retryFailedStageAction} className="mt-4"><input type="hidden" name="jobId" value={job.id} /><button disabled={demo} className="rounded-xl border border-red-300 px-4 py-2 font-black text-red-800 disabled:opacity-40">Repetir etapa que falhou</button></form>}
 
     <section className="mt-7 rounded-2xl border border-amber-200 bg-[#fffdf5] p-5"><h2 className="text-xl font-black text-emerald-950">Documentos</h2>
       <form action={classifyAndDownloadAction} className="mt-4"><input type="hidden" name="jobId" value={job.id} />
@@ -47,14 +50,14 @@ export default async function ImportJobPage({ params, searchParams }: { params: 
           const metadata = doc.metadata && typeof doc.metadata === "object" && !Array.isArray(doc.metadata) ? doc.metadata as Record<string, unknown> : {};
           return <tr key={doc.id} className="border-b align-top"><td className="px-2 py-3"><input type="hidden" name="allDocumentIds" value={doc.id} /><input type="checkbox" name="documentIds" value={doc.id} defaultChecked={["SELECTED", "VALIDATED"].includes(doc.status)} disabled={doc.status === "VALIDATED"} /></td><td className="px-2 py-3">{doc.description ?? doc.originalFilename ?? "Documento"}</td><td className="max-w-64 break-all px-2 py-3 text-xs">{doc.sourceUrl}</td><td className="px-2 py-3">{String(metadata.detectedType ?? doc.documentType)}</td><td className="px-2 py-3"><select name={`documentType.${doc.id}`} defaultValue={doc.documentType} disabled={doc.status === "VALIDATED"} className="input min-w-52">{Object.values(DocumentType).map((type) => <option key={type}>{type}</option>)}</select></td><td className="px-2 py-3">{doc.paperCode ?? "—"}</td><td className="px-2 py-3">{doc.size ? `${doc.size} bytes` : "—"}<span className="block">{doc.mimeType ?? "—"}</span></td><td className="max-w-48 break-all px-2 py-3 font-mono text-xs">{doc.sha256 ?? "—"}</td><td className="px-2 py-3">{doc.publishedAt?.toLocaleDateString("pt-BR") ?? "—"}</td><td className="px-2 py-3">{doc.status}</td><td className="px-2 py-3">{doc.localPath && <span className="flex gap-2"><a target="_blank" href={`/api/admin/importacoes/${job.id}/documentos/${doc.id}`} className="font-bold text-emerald-800">Ver</a><a href={`/api/admin/importacoes/${job.id}/documentos/${doc.id}?download=1`} className="font-bold text-emerald-800">Baixar</a></span>}</td></tr>;
         })}</tbody></table></div>
-        {job.stage === "WAITING_DOCUMENT_SELECTION" && <button className="mt-4 rounded-xl bg-emerald-900 px-5 py-3 font-black text-white">Confirmar classificação e baixar selecionados</button>}
+        {job.stage === "WAITING_DOCUMENT_SELECTION" && <button disabled={demo} className="mt-4 rounded-xl bg-emerald-900 px-5 py-3 font-black text-white disabled:opacity-40">Confirmar classificação e baixar selecionados</button>}
       </form>
     </section>
 
     <section className="mt-5 grid gap-4 md:grid-cols-3">
-      <Action title="Extração local" description="Extrai texto sem IA e preserva artefatos anteriores." action={extractAction} jobId={job.id} enabled={job.stage === "EXTRACTING"} button="Executar extração" />
+      <Action title="Extração local" description="Extrai texto sem IA e preserva artefatos anteriores." action={extractAction} jobId={job.id} enabled={!demo && job.stage === "EXTRACTING"} button="Executar extração" />
       <div className="rounded-2xl border border-amber-200 bg-[#fffdf5] p-5"><h2 className="font-black text-emerald-950">exam.json</h2><p className="mt-2 text-sm text-slate-600">Use a saída determinística/revisada. O arquivo nunca é sobrescrito e não dispara importação.</p><form action={provideExamJsonAction} className="mt-4 space-y-3"><input type="hidden" name="jobId" value={job.id} /><input name="examJson" type="file" accept=".json,application/json" required disabled={job.stage !== "GENERATING_EXAM"} className="block w-full text-sm" /><button disabled={job.stage !== "GENERATING_EXAM"} className="rounded-xl bg-amber-400 px-4 py-2 font-black text-emerald-950 disabled:opacity-40">Fornecer e validar exam.json</button></form><form action={validateExamAction} className="mt-2"><input type="hidden" name="jobId" value={job.id} /><button disabled={job.stage !== "GENERATING_EXAM"} className="text-sm font-bold text-emerald-800 disabled:opacity-40">Validar arquivo já existente</button></form></div>
-      <Action title="Dry-run" description="Verifica conflitos e não grava dados editoriais." action={dryRunAction} jobId={job.id} enabled={job.stage === "VALIDATING" || job.stage === "DRY_RUN_COMPLETE"} button="Executar dry-run" />
+      <Action title="Dry-run" description="Verifica conflitos e não grava dados editoriais." action={dryRunAction} jobId={job.id} enabled={!demo && (job.stage === "VALIDATING" || job.stage === "DRY_RUN_COMPLETE")} button="Executar dry-run" />
     </section>
 
     <section className="mt-5 rounded-2xl border border-amber-200 bg-[#fffdf5] p-5"><h2 className="text-xl font-black text-emerald-950">Destino da importação</h2><p className="mt-1 text-sm text-slate-600">Concursos publicados ou arquivados são exibidos apenas como bloqueados.</p>
@@ -69,7 +72,7 @@ export default async function ImportJobPage({ params, searchParams }: { params: 
 
     <section className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><h2 className="text-xl font-black text-emerald-950">Importação persistente</h2>
       {completed && importResult ? <div className="mt-3"><p className="font-bold">Concluída: {String(importResult.createdQuestions ?? 0)} questões e {String(importResult.createdVisualAssets ?? 0)} recursos visuais criados como IN_REVIEW.</p><div className="mt-3 flex flex-wrap gap-3"><Link href={`/admin/concursos/${String(importResult.concursoId)}`} className="font-black text-emerald-800">Abrir concurso</Link><Link href="/admin?status=IN_REVIEW" className="font-black text-emerald-800">Abrir fila de revisão</Link><a href="#artifacts" className="font-black text-emerald-800">Ver relatório</a></div></div>
-      : <ImportForReviewButton jobId={job.id} enabled={job.stage === "WAITING_REVIEW" && Boolean(job.destinationType) && job.destinationType !== "CANCELLED"} />}
+      : <ImportForReviewButton jobId={job.id} enabled={!demo && job.stage === "WAITING_REVIEW" && Boolean(job.destinationType) && job.destinationType !== "CANCELLED"} />}
     </section>
 
     <section id="artifacts" className="mt-5 rounded-2xl border border-stone-200 bg-white p-5"><h2 className="text-xl font-black text-emerald-950">Artefatos</h2><div className="mt-3 overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Tipo</th><th className="text-left">Hash</th><th className="text-left">Data</th><th>Ações</th></tr></thead><tbody>{job.artifacts.map((artifact) => <tr key={artifact.id} className="border-t"><td className="py-3"><b>{artifact.artifactType}</b></td><td><code className="break-all text-xs">{artifact.sha256}</code></td><td>{artifact.createdAt.toLocaleString("pt-BR")}</td><td className="text-right"><a target="_blank" href={`/api/admin/importacoes/${job.id}/artefatos/${artifact.id}`} className="font-bold text-emerald-800">Visualizar</a> · <a href={`/api/admin/importacoes/${job.id}/artefatos/${artifact.id}?download=1`} className="font-bold text-emerald-800">Baixar</a></td></tr>)}</tbody></table></div></section>

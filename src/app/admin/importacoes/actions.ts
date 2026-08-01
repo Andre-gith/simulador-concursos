@@ -14,6 +14,7 @@ import { DocumentType, ImportDestinationType } from "@prisma/client";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { jobExecutor } from "@/lib/job-executor";
 import type { JobType } from "@/lib/jobs/contracts";
+import { DEMO_AUTOMATION_MESSAGE, isDemoDeployment } from "@/lib/deployment-mode";
 
 const metadataSchema = z.object({
   officialUrl: z.string().url(),
@@ -30,6 +31,9 @@ const metadataSchema = z.object({
 function optional(data: FormData, name: string) {
   const value = data.get(name); return typeof value === "string" && value.trim() ? value : undefined;
 }
+function blockDemo(path: string) {
+  if (isDemoDeployment()) redirect(`${path}?error=${encodeURIComponent(DEMO_AUTOMATION_MESSAGE)}`);
+}
 async function enqueueImportStage(type: Extract<JobType, `OFFICIAL_IMPORT_${string}`>, importJobId: string) {
   const executor = jobExecutor();
   const latest = await prisma.sourceDocument.aggregate({ where: { importJobId }, _max: { version: true } });
@@ -42,6 +46,7 @@ async function enqueueImportStage(type: Extract<JobType, `OFFICIAL_IMPORT_${stri
 
 export async function analyzeSourceAction(data: FormData) {
   const session = await requireAdmin();
+  blockDemo("/admin/importacoes/nova");
   if (!(await enforceRateLimit(`admin:analyze:${session.user.id}`, 10, 600)).allowed) redirect("/admin/importacoes/nova?error=Limite de análises excedido");
   const parsed = metadataSchema.safeParse({
     officialUrl: data.get("officialUrl"), board: optional(data, "board"),
@@ -68,6 +73,7 @@ export async function analyzeSourceAction(data: FormData) {
 
 export async function createManualImportAction(data: FormData) {
   const session = await requireAdmin();
+  blockDemo("/admin/importacoes/nova");
   const metadata = metadataSchema.omit({ officialUrl: true }).safeParse({
     board: optional(data, "board"), institution: data.get("institution"), position: data.get("position"),
     specialty: optional(data, "specialty"), year: optional(data, "year"), edition: optional(data, "edition"),
@@ -99,6 +105,7 @@ export async function createManualImportAction(data: FormData) {
 
 export async function classifyAndDownloadAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   if (!(await enforceRateLimit(`admin:download:${session.user.id}`, 10, 600)).allowed) redirect(`/admin/importacoes/${jobId}?error=Limite de downloads excedido`);
   const ids = data.getAll("allDocumentIds").map(String);
   const selected = new Set(data.getAll("documentIds").map(String));
@@ -110,6 +117,7 @@ export async function classifyAndDownloadAction(data: FormData) {
 
 export async function extractAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   try { const executor = jobExecutor(); if (executor.mode === "queue") await enqueueImportStage("OFFICIAL_IMPORT_EXTRACT", jobId); else await executor.execute("official-document-extraction", { jobId }, () => extractDocuments(prisma, jobId, session.user.id)); }
   catch (error) { redirect(`/admin/importacoes/${jobId}?error=${encodeURIComponent(error instanceof Error ? error.message : "Falha na extração.")}`); }
   revalidatePath(`/admin/importacoes/${jobId}`); redirect(`/admin/importacoes/${jobId}`);
@@ -117,6 +125,7 @@ export async function extractAction(data: FormData) {
 
 export async function validateExamAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   try { const executor = jobExecutor(); if (executor.mode === "queue") await enqueueImportStage("OFFICIAL_IMPORT_GENERATE", jobId); else await validateExamArtifact(prisma, jobId, session.user.id); }
   catch (error) { redirect(`/admin/importacoes/${jobId}?error=${encodeURIComponent(error instanceof Error ? error.message : "exam.json inválido.")}`); }
   revalidatePath(`/admin/importacoes/${jobId}`); redirect(`/admin/importacoes/${jobId}`);
@@ -124,6 +133,7 @@ export async function validateExamAction(data: FormData) {
 
 export async function provideExamJsonAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   const file = data.get("examJson");
   if (!(file instanceof File) || file.size === 0) redirect(`/admin/importacoes/${jobId}?error=Selecione um exam.json`);
   try { await provideExamJson(prisma, jobId, await file.text(), session.user.id); }
@@ -133,6 +143,7 @@ export async function provideExamJsonAction(data: FormData) {
 
 export async function dryRunAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   try { const executor = jobExecutor(); if (executor.mode === "queue") await enqueueImportStage("OFFICIAL_IMPORT_DRY_RUN", jobId); else await dryRunJob(prisma, jobId, session.user.id); }
   catch (error) { redirect(`/admin/importacoes/${jobId}?error=${encodeURIComponent(error instanceof Error ? error.message : "Dry-run falhou.")}`); }
   revalidatePath(`/admin/importacoes/${jobId}`); redirect(`/admin/importacoes/${jobId}`);
@@ -154,6 +165,7 @@ export async function selectDestinationAction(data: FormData) {
 
 export async function importForReviewAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   if (data.get("confirmation") !== "IMPORT_FOR_REVIEW") redirect(`/admin/importacoes/${jobId}?error=Confirmação obrigatória`);
   try { const executor = jobExecutor(); if (executor.mode === "queue") await enqueueImportStage("OFFICIAL_IMPORT_PERSIST", jobId); else await importJobForReview(prisma, jobId, session.user.id); }
   catch (error) { redirect(`/admin/importacoes/${jobId}?error=${encodeURIComponent(error instanceof Error ? error.message : "Importação rejeitada.")}`); }
@@ -163,6 +175,7 @@ export async function importForReviewAction(data: FormData) {
 
 export async function retryFailedStageAction(data: FormData) {
   const session = await requireAdmin(); const jobId = String(data.get("jobId") ?? "");
+  blockDemo(`/admin/importacoes/${jobId}`);
   const job = await prisma.importJob.findUnique({ where: { id: jobId }, select: { stage: true, previousStage: true } });
   if (!job || job.stage !== "FAILED" || !job.previousStage) redirect(`/admin/importacoes/${jobId}?error=O trabalho não possui etapa repetível`);
   const repeatable = ["DISCOVERING_DOCUMENTS", "DOWNLOADING", "EXTRACTING", "GENERATING_EXAM", "VALIDATING"];

@@ -4,10 +4,17 @@ import { assertSafeQueuePayload, deterministicJobId, parseJobEnvelope, type JobE
 
 export type EnqueueResult = { queued: true; jobId: string; duplicated: boolean };
 export interface JobExecutor {
-  readonly mode: "inline" | "queue";
+  readonly mode: "inline" | "queue" | "disabled";
   execute<T>(name: string, payload: Record<string, unknown>, inline: () => Promise<T>): Promise<T>;
   enqueue<T extends JobType>(job: JobEnvelope<T>): Promise<EnqueueResult>;
   close(): Promise<void>;
+}
+
+export class DisabledJobExecutor implements JobExecutor {
+  readonly mode = "disabled" as const;
+  async execute<T>(_name: string, _payload: Record<string, unknown>, _inline: () => Promise<T>): Promise<T> { throw new Error("Automação indisponível neste ambiente de demonstração."); }
+  async enqueue<T extends JobType>(_job: JobEnvelope<T>): Promise<EnqueueResult> { throw new Error("Automação indisponível neste ambiente de demonstração."); }
+  async close() {}
 }
 
 export class InlineJobExecutor implements JobExecutor {
@@ -49,7 +56,14 @@ export class QueueJobExecutor implements JobExecutor {
 
 let singleton: JobExecutor | undefined;
 export function jobExecutor(env = process.env): JobExecutor {
-  singleton ??= env.JOB_EXECUTOR === "queue" ? new QueueJobExecutor(env) : new InlineJobExecutor(env);
-  if (env.NODE_ENV === "production" && singleton.mode !== "queue") throw new Error("JOB_EXECUTOR=queue é obrigatório em produção.");
+  const deploymentMode = env.DEPLOYMENT_MODE ?? (env.NODE_ENV === "production" ? undefined : "full");
+  if (!["full", "demo"].includes(deploymentMode ?? "")) throw new Error("DEPLOYMENT_MODE inválido.");
+  if (deploymentMode === "demo" && env.JOB_EXECUTOR !== "disabled") throw new Error("JOB_EXECUTOR=disabled é obrigatório no modo demo.");
+  if (deploymentMode === "full" && env.NODE_ENV === "production" && env.JOB_EXECUTOR !== "queue") throw new Error("JOB_EXECUTOR=queue é obrigatório no modo full de produção.");
+  singleton ??= env.JOB_EXECUTOR === "disabled"
+    ? new DisabledJobExecutor()
+    : env.JOB_EXECUTOR === "queue"
+      ? new QueueJobExecutor(env)
+      : new InlineJobExecutor(env);
   return singleton;
 }

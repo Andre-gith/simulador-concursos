@@ -68,7 +68,15 @@ export class ObjectStorageProvider implements PrivateStorageProvider {
 }
 
 let singleton: PrivateStorageProvider | undefined;
+export function isPrivateStorageConfigured(environment = process.env) {
+  if (environment.STORAGE_PROVIDER !== "s3") return environment.NODE_ENV !== "production";
+  return ["STORAGE_BUCKET", "STORAGE_REGION", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY"]
+    .every((key) => Boolean(environment[key]?.trim()));
+}
 export function privateStorage(environment = process.env) {
+  if (environment.NODE_ENV === "production" && environment.STORAGE_PROVIDER !== "s3") {
+    throw new Error("Storage privado externo não configurado.");
+  }
   singleton ??= environment.STORAGE_PROVIDER === "s3" ? new ObjectStorageProvider(environment) : new LocalPrivateStorageProvider();
   return singleton;
 }

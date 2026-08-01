@@ -1,12 +1,13 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { contentTypeFor, validateStoredImportFile } from "@/lib/official-import/file-access";
-import { privateStorage } from "@/lib/storage";
+import { isPrivateStorageConfigured, privateStorage } from "@/lib/storage";
 
 export async function GET(request: Request, { params }: { params: Promise<{ jobId: string; documentId: string }> }) {
   const session = await auth();
   if (!session?.user?.id) return new Response("Não autenticado.", { status: 401 });
   if (session.user.role !== "ADMIN") return new Response("Acesso negado.", { status: 403 });
+  if (!isPrivateStorageConfigured()) return new Response("Arquivo indisponível.", { status: 503 });
   const { jobId, documentId } = await params;
   const document = await prisma.sourceDocument.findFirst({ where: { id: documentId, importJobId: jobId, localPath: { not: null } } });
   if (!document?.localPath) return new Response("Documento não encontrado.", { status: 404 });

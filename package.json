@@ -26,6 +26,7 @@
     "storage:migrate": "tsx scripts/storage-migrate.ts",
     "production:check": "tsx scripts/production-check.ts",
     "render:validate": "node scripts/validate-render-blueprint.cjs",
+    "render:demo:start": "node scripts/start-render-demo.cjs",
     "worker:build": "esbuild src/worker/index.ts --bundle --platform=node --target=node20 --packages=external --outfile=dist/worker/index.js",
     "worker:start": "node dist/worker/index.js",
     "cron:build": "esbuild src/cron/monitor.ts src/cron/catalog.ts --bundle --platform=node --target=node20 --packages=external --outdir=dist/cron",

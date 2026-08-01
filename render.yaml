@@ -14,6 +14,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DEPLOYMENT_MODE
+        value: full
       - key: AI_PROVIDER
         value: disabled
       - key: JOB_EXECUTOR
@@ -81,6 +83,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DEPLOYMENT_MODE
+        value: full
       - key: AI_PROVIDER
         value: disabled
       - key: JOB_EXECUTOR

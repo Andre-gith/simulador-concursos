@@ -27,7 +27,7 @@ export function rateLimitProvider(env = process.env) {
       if (!env.REDIS_URL) throw new Error("Rate limit Redis não configurado.");
       provider = new RedisRateLimitProvider(env.REDIS_URL);
     } else {
-      if (env.NODE_ENV === "production") throw new Error("Rate limit em memória é proibido em produção.");
+      if (env.NODE_ENV === "production" && env.DEPLOYMENT_MODE !== "demo") throw new Error("Rate limit em memória é proibido no modo full de produção.");
       provider = new MemoryRateLimitProvider();
     }
   }

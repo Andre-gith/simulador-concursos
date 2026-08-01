@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { jobExecutor } from "@/lib/job-executor";
 import { enqueueDueMonitors } from "@/lib/jobs/schedulers";
+import { demoUnavailableResponse, isDemoDeployment } from "@/lib/deployment-mode";
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  if (isDemoDeployment()) return demoUnavailableResponse();
   if (!isValidCronAuthorization(request.headers.get("authorization"), process.env.MONITOR_CRON_SECRET)) {
     return Response.json({ error: "Não autorizado." }, { status: 401 });
   }
