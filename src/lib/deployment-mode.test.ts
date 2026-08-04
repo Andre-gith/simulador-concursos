@@ -6,6 +6,8 @@ import {
   DEMO_AUTOMATION_MESSAGE,
   demoUnavailableResponse,
   deploymentMode,
+  isLiteDeployment,
+  liteUnavailableResponse,
 } from "./deployment-mode";
 import { DisabledJobExecutor } from "./job-executor";
 import { validateProductionConfig } from "./production-config";
@@ -37,6 +39,32 @@ describe("modo de deployment", () => {
     expect(issues.some(({ key }) => key === "REDIS_URL")).toBe(false);
   });
 
+  it("lite aceita execução manual inline sem Redis ou BullMQ", async () => {
+    const environment = {
+      ...base,
+      DEPLOYMENT_MODE: "lite",
+      JOB_EXECUTOR: "disabled",
+      RATE_LIMIT_PROVIDER: "memory",
+      STORAGE_PROVIDER: "s3",
+      STORAGE_BUCKET: "bucket",
+      STORAGE_REGION: "region",
+      STORAGE_ACCESS_KEY_ID: "key",
+      STORAGE_SECRET_ACCESS_KEY: "secret",
+    } satisfies NodeJS.ProcessEnv;
+    const issues = validateProductionConfig(environment);
+    expect(issues.filter(({ severity }) => severity === "error")).toEqual([]);
+    expect(issues.some(({ key }) => key === "REDIS_URL")).toBe(false);
+    expect(isLiteDeployment(environment)).toBe(true);
+
+    vi.resetModules();
+    const { jobExecutor } = await import("./job-executor");
+    const executor = jobExecutor(environment);
+    const manualImport = vi.fn().mockResolvedValue({ persisted: true, published: false });
+    await expect(executor.execute("manual-import", {}, manualImport)).resolves.toEqual({ persisted: true, published: false });
+    expect(executor.mode).toBe("inline");
+    expect(manualImport).toHaveBeenCalledOnce();
+  });
+
   it("full exige queue, Redis, rate limit distribuído e segredos de cron", () => {
     const issues = validateProductionConfig({
       ...base,
@@ -62,6 +90,12 @@ describe("modo de deployment", () => {
     const response = demoUnavailableResponse();
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: DEMO_AUTOMATION_MESSAGE });
+  });
+
+  it("cron no modo lite responde 503 sem iniciar automações", async () => {
+    const response = liteUnavailableResponse();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Automações em segundo plano estão desabilitadas no modo Lite." });
   });
 });
 
@@ -148,5 +182,48 @@ describe("Blueprint e superfície demo", () => {
     for (const path of statusIndependentPaths) {
       expect(readFileSync(resolve(path), "utf8")).not.toContain("DEPLOYMENT_MODE");
     }
+  });
+});
+
+describe("Blueprint e superfície lite", () => {
+  const yaml = readFileSync(resolve("render.lite.yaml"), "utf8");
+  const dockerfile = readFileSync(resolve("Dockerfile.lite"), "utf8");
+
+  it("declara somente Web e PostgreSQL, sem Redis, Worker ou Cron", () => {
+    const parsed = load(yaml) as { services: Array<Record<string, unknown>>; databases: Array<Record<string, unknown>>; };
+    expect(parsed.services).toHaveLength(1);
+    expect(parsed.services[0]).toMatchObject({ type: "web", name: "nota-de-banca-lite-web", dockerfilePath: "./Dockerfile.lite", plan: "free" });
+    expect(parsed.databases).toEqual([expect.objectContaining({ name: "nota-de-banca-lite-postgres", plan: "free" })]);
+    expect(yaml).toContain("value: lite");
+    expect(yaml).toContain("value: disabled");
+    expect(yaml).toContain("value: memory");
+    expect(yaml).not.toMatch(/REDIS_URL|type:\s*(worker|keyvalue|cron)|dockerCommand|preDeployCommand/);
+  });
+
+  it("preserva Prisma e standalone na imagem Lite sem incluir Worker", () => {
+    expect(dockerfile).toContain("FROM node:20-bookworm-slim");
+    expect(dockerfile).toContain("npx prisma generate && npm run build");
+    expect(dockerfile).toContain("/app/.next/standalone");
+    expect(dockerfile).toContain("/app/prisma");
+    expect(dockerfile).not.toContain("worker");
+  });
+
+  it("mantém etapas manuais de importação inline e bloqueia apenas cron automático", () => {
+    const imports = readFileSync(resolve("src/app/admin/importacoes/actions.ts"), "utf8");
+    for (const stage of ["official-source-analysis", "official-document-download", "official-document-extraction", "validateExamArtifact", "dryRunJob", "importJobForReview"]) {
+      expect(imports).toContain(stage);
+    }
+    for (const path of ["src/app/api/internal/monitor-sources/route.ts", "src/app/api/internal/catalog-sync/route.ts"]) {
+      const source = readFileSync(resolve(path), "utf8");
+      const handler = source.slice(source.indexOf("export async function POST"));
+      expect(handler.indexOf("isLiteDeployment()")).toBeLessThan(handler.indexOf("enforceRateLimit"));
+      expect(source).toContain("liteUnavailableResponse");
+    }
+  });
+
+  it("exibe o aviso Lite discreto sem desabilitar importações manuais", () => {
+    const shell = readFileSync(resolve("src/components/layout/AdminShell.tsx"), "utf8");
+    expect(shell).toContain("Modo Lite");
+    expect(shell).toContain("Importações manuais continuam disponíveis.");
   });
 });

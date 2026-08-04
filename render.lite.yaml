@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+
+services:
+  - type: web
+    name: nota-de-banca-lite-web
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: false
+    dockerfilePath: ./Dockerfile.lite
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOYMENT_MODE
+        value: lite
+      - key: JOB_EXECUTOR
+        value: disabled
+      - key: AI_PROVIDER
+        value: disabled
+      - key: RATE_LIMIT_PROVIDER
+        value: memory
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: STORAGE_PREFIX
+        value: lite
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nota-de-banca-lite-postgres
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: nota-de-banca-lite-postgres
+          property: connectionString
+      - key: AUTH_SECRET
+        sync: false
+      - key: AUTH_URL
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_FORCE_PATH_STYLE
+        sync: false
+      - key: APP_VERSION
+        sync: false
+
+databases:
+  - name: nota-de-banca-lite-postgres
+    plan: free
+    region: oregon
+    databaseName: nota_de_banca_lite
+    postgresMajorVersion: "16"
+    ipAllowList: []
