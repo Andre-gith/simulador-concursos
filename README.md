@@ -1,184 +1,318 @@
-# Nota de Banca
+# 📚 Nota de Banca
 
-**Treine com a pontuaÃ§Ã£o real da sua prova.**
+> **Treine com a pontuação real utilizada nos principais concursos públicos brasileiros.**
 
-AplicaÃ§Ã£o para montar simulados de concursos e calcular resultados conforme a
-regra configurada para cada prova: penalidade por erro, pesos, questÃµes em
-branco, nota lÃ­quida e desempenho por matÃ©ria e bloco.
+O **Nota de Banca** é uma plataforma completa para criação de simulados de concursos públicos com correção baseada nas regras oficiais de cada prova. O sistema considera critérios como penalidade por erro, pesos diferentes entre questões, questões em branco, nota líquida e desempenho detalhado por matéria e bloco.
 
-## Conceitos
+---
 
-- **Ã“rgÃ£o ou instituiÃ§Ã£o** Ã© quem promove o concurso, como Banco do Brasil,
-  Caixa EconÃ´mica Federal, Dataprev, Transpetro ou Petrobras.
-- **Banca** Ã© quem organiza e aplica a prova, como Cesgranrio, Cebraspe ou FGV.
+# ✨ Funcionalidades
 
-Uma banca nÃ£o Ã© inferida pelo nome da instituiÃ§Ã£o. A regra de pontuaÃ§Ã£o tambÃ©m
-Ã© cadastrada por concurso e deve ser confirmada nos documentos oficiais.
+* 📖 Catálogo de concursos públicos
+* 📝 Criação de simulados personalizados
+* 📊 Cálculo da nota conforme o edital oficial
+* 📈 Estatísticas detalhadas de desempenho
+* 🎯 Correção com penalidade por erro
+* 📚 Organização por matérias, assuntos e blocos
+* 👤 Sistema de autenticação de usuários
+* 🤖 Importação assistida por Inteligência Artificial
+* 🔍 Revisão humana antes da publicação
+* 📜 Histórico completo de tentativas
 
-## Stack
+---
 
-- Next.js 15 com App Router
-- React 19
-- TypeScript
-- PostgreSQL
-- Prisma ORM 6
-- Tailwind CSS
-- Auth.js
-- Vitest
+# 🏛 Conceitos
 
-## ConfiguraÃ§Ã£o local
+## Órgão
 
-Requisitos:
+É a instituição responsável pelo concurso, por exemplo:
 
-- Node.js 20 ou superior;
-- PostgreSQL disponÃ­vel;
-- banco e usuÃ¡rio com permissÃ£o para o schema da aplicaÃ§Ã£o.
+* Banco do Brasil
+* Caixa Econômica Federal
+* Petrobras
+* Transpetro
+* Dataprev
+
+## Banca
+
+É a empresa responsável por elaborar e aplicar a prova, como:
+
+* Cesgranrio
+* Cebraspe
+* FGV
+
+> A banca **não é inferida automaticamente** pelo nome do órgão. Cada concurso possui sua própria regra de pontuação, cadastrada exclusivamente com base nos documentos oficiais.
+
+---
+
+# 🚀 Tecnologias
+
+* **Next.js 15 (App Router)**
+* **React 19**
+* **TypeScript**
+* **PostgreSQL**
+* **Prisma ORM 6**
+* **Tailwind CSS**
+* **Auth.js**
+* **Vitest**
+
+---
+
+# 📦 Instalação
+
+## Pré-requisitos
+
+* Node.js 20 ou superior
+* PostgreSQL
+* Banco de dados com permissões para criação do schema
+
+Instale as dependências:
 
 ```bash
 npm install
-copy .env.example .env
+```
+
+Copie o arquivo de ambiente:
+
+```bash
+cp .env.example .env
+```
+
+Gere o Prisma Client:
+
+```bash
 npx prisma generate
+```
+
+Crie a estrutura do banco:
+
+```bash
 npm run db:push
+```
+
+Popule os dados iniciais:
+
+```bash
 npm run db:seed
-npm run catalog:seed
-npm run dev
 ```
 
-NÃ£o use `prisma migrate reset` em bancos com dados.
-
-## VariÃ¡veis de ambiente
-
-```env
-DATABASE_URL
-AUTH_SECRET
-ANTHROPIC_API_KEY
-ANTHROPIC_MODEL
-```
-
-`DATABASE_URL` e `AUTH_SECRET` sÃ£o necessÃ¡rias para banco e autenticaÃ§Ã£o.
-`ANTHROPIC_API_KEY` e `ANTHROPIC_MODEL` sÃ£o opcionais: sem elas, a extraÃ§Ã£o
-local de PDFs e a geraÃ§Ã£o do arquivo intermediÃ¡rio continuam funcionando, mas
-nenhuma IA Ã© executada.
-
-Nunca inclua `.env` no controle de versÃ£o.
-
-## CatÃ¡logo
-
-A home separa:
-
-- **DisponÃ­veis:** concursos `PUBLISHED`, com regra de pontuaÃ§Ã£o e pelo menos
-  uma questÃ£o `PUBLISHED`;
-- **Em preparaÃ§Ã£o:** concursos em `DRAFT` ou `IN_REVIEW`, concursos
-  incompletos e entradas editoriais ainda sem documentaÃ§Ã£o suficiente.
-
-O seed editorial Ã© separado do seed demonstrativo:
+Carregue o catálogo editorial:
 
 ```bash
 npm run catalog:seed
 ```
 
-Ele Ã© idempotente, nÃ£o cria questÃµes, nÃ£o remove dados e nÃ£o altera concursos
-publicados destrutivamente. Consulte [docs/catalogo.md](docs/catalogo.md).
+Inicie a aplicação:
 
-## Fluxo do usuÃ¡rio
+```bash
+npm run dev
+```
 
-1. localizar um concurso disponÃ­vel;
-2. consultar metadados, matÃ©rias, blocos e regra;
-3. escolher matÃ©rias, quantidade de questÃµes e duraÃ§Ã£o opcional;
-4. iniciar uma tentativa autenticada;
-5. responder ou deixar questÃµes em branco;
-6. finalizar manualmente ou por tempo;
-7. consultar nota lÃ­quida, taxa de acerto e desempenho detalhado;
-8. rever tentativas finalizadas no histÃ³rico.
+> **Importante:** Nunca utilize `prisma migrate reset` em bancos que contenham dados.
 
-Concursos em preparaÃ§Ã£o mostram apenas metadados e o estado da revisÃ£o. Eles
-nÃ£o exibem o formulÃ¡rio de inÃ­cio.
+---
 
-## ImportaÃ§Ã£o por JSON
+# 🔐 Variáveis de Ambiente
 
-O formato estÃ¡ documentado em [data/README.md](data/README.md) e
-[docs/importacao-provas.md](docs/importacao-provas.md).
+Obrigatórias:
 
-ValidaÃ§Ã£o sem gravaÃ§Ã£o:
+```env
+DATABASE_URL=
+AUTH_SECRET=
+```
+
+Opcionais (IA):
+
+```env
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=
+```
+
+Sem as variáveis da IA, o sistema continua funcionando normalmente, porém os recursos de processamento inteligente de PDFs ficam desabilitados.
+
+⚠️ Nunca envie arquivos `.env` para o GitHub.
+
+---
+
+# 📚 Catálogo
+
+O sistema divide os concursos em duas categorias:
+
+### ✅ Disponíveis
+
+Concursos publicados que possuem:
+
+* Regra de pontuação cadastrada
+* Questões publicadas
+* Metadados completos
+
+### 🚧 Em preparação
+
+Concursos que estão:
+
+* Em rascunho (Draft)
+* Em revisão
+* Incompletos
+* Aguardando documentação oficial
+
+O seed do catálogo é idempotente:
+
+```bash
+npm run catalog:seed
+```
+
+Ou seja, ele não remove dados existentes nem altera concursos publicados.
+
+---
+
+# 👤 Fluxo do Usuário
+
+O usuário pode:
+
+1. Localizar um concurso disponível;
+2. Consultar informações da prova;
+3. Escolher matérias;
+4. Definir quantidade de questões;
+5. Configurar tempo de prova;
+6. Iniciar um simulado;
+7. Responder ou deixar questões em branco;
+8. Finalizar manualmente ou pelo tempo;
+9. Visualizar nota, estatísticas e desempenho;
+10. Revisar tentativas anteriores.
+
+---
+
+# 📥 Importação de Provas
+
+Validação sem gravação:
 
 ```bash
 npm run import:exam -- data/exemplo.json --dry-run
 ```
 
-ImportaÃ§Ã£o real:
+Importação definitiva:
 
 ```bash
-npm run import:exam -- caminho/arquivo-revisado.json
+npm run import:exam -- caminho/prova.json
 ```
 
-Arquivos `.template.json` sÃ£o recusados de propÃ³sito. Copie o template,
-preencha somente informaÃ§Ãµes confirmadas, remova o sufixo `.template` e faÃ§a o
-`--dry-run`.
+Arquivos `.template.json` são recusados propositalmente para evitar importações incorretas.
 
-## ImportaÃ§Ã£o assistida por IA
+---
 
-Administradores podem fornecer localmente:
+# 🤖 Pipeline de IA
 
-- PDF oficial da prova;
-- PDF oficial do gabarito;
-- metadados bÃ¡sicos.
+Administradores podem importar:
 
-O sistema extrai texto com marcadores de pÃ¡gina, cria
-`data/imports/<id>/intermediario.json` e, quando configurado, envia o texto ao
-provider de IA. A resposta passa por validaÃ§Ã£o determinÃ­stica antes de uma
-transaÃ§Ã£o Prisma.
+* PDF oficial da prova;
+* PDF oficial do gabarito;
+* Metadados da prova.
 
-Nenhuma questÃ£o Ã© publicada automaticamente. Veja
-[docs/pipeline-ia.md](docs/pipeline-ia.md).
+O sistema:
 
-## RevisÃ£o humana e publicaÃ§Ã£o
+* extrai o texto;
+* identifica páginas;
+* gera um JSON intermediário;
+* envia para IA (quando configurada);
+* valida automaticamente a resposta;
+* salva os dados utilizando transações do Prisma.
 
-QuestÃµes importadas entram como `IN_REVIEW`. A tela administrativa apresenta
-fonte, pÃ¡gina, enunciado, alternativas, gabarito, matÃ©ria, assunto, bloco e
-peso.
+Nenhuma questão é publicada automaticamente.
 
-Um concurso sÃ³ pode receber `PUBLISHED` quando:
+---
 
-- possui regra de pontuaÃ§Ã£o;
-- possui ao menos uma questÃ£o `PUBLISHED`;
-- todas as questÃµes publicadas tÃªm peso positivo;
-- questÃµes CE possuem gabarito;
-- questÃµes MC possuem exatamente uma alternativa correta;
-- fonte oficial e pÃ¡gina estÃ£o registradas.
+# 👨‍⚖️ Revisão Humana
 
-NÃ£o hÃ¡ exclusÃ£o destrutiva no painel. Os estados disponÃ­veis sÃ£o `DRAFT`,
-`IN_REVIEW`, `PUBLISHED` e `ARCHIVED`.
+Todas as questões importadas permanecem inicialmente com o status:
 
-## Comandos
+```text
+IN_REVIEW
+```
+
+Antes da publicação é possível revisar:
+
+* Enunciado
+* Alternativas
+* Gabarito
+* Matéria
+* Assunto
+* Bloco
+* Peso
+* Fonte oficial
+* Página do documento
+
+Um concurso somente pode ser publicado quando todas as validações forem atendidas.
+
+---
+
+# ⚙️ Comandos
+
+### Desenvolvimento
 
 ```bash
 npm run dev
+```
+
+### Build
+
+```bash
 npm run build
+```
+
+### Testes
+
+```bash
 npm test
 npm run test:watch
+```
+
+### Banco de Dados
+
+```bash
 npm run db:push
-npm run db:seed
-npm run catalog:seed
 npm run db:generate
+npm run db:seed
 npm run db:studio
+```
+
+### Catálogo
+
+```bash
+npm run catalog:seed
+```
+
+### Importação
+
+```bash
 npm run import:exam -- arquivo.json --dry-run
 ```
 
-## LimitaÃ§Ãµes atuais
+---
 
-- PDFs digitalizados sem camada de texto precisam de OCR prÃ©vio.
-- NÃ£o existe scraping ou download automÃ¡tico de provas.
-- O armazenamento dos PDFs importados Ã© local em `data/imports/`.
-- A IA depende de chave e modelo configurados e pode retornar conteÃºdo
-  invÃ¡lido; por isso o servidor valida tudo.
-- A revisÃ£o humana Ã© obrigatÃ³ria.
-- Regras eliminatÃ³rias nÃ£o cadastradas nÃ£o podem ser inferidas.
-- Templates nÃ£o contÃªm questÃµes oficiais.
-- Para produÃ§Ã£o, arquivos precisam de armazenamento privado persistente e o
-  PostgreSQL deve ser gerenciado.
+# ⚠️ Limitações Atuais
 
-## DocumentaÃ§Ã£o
+* PDFs digitalizados precisam de OCR.
+* Não existe download automático de provas.
+* Os PDFs importados são armazenados localmente por padrão.
+* A IA depende de configuração e pode gerar respostas inválidas.
+* Toda publicação exige revisão humana.
+* Regras eliminatórias nunca são inferidas automaticamente.
+* Em produção recomenda-se utilizar armazenamento persistente para arquivos e um PostgreSQL gerenciado.
 
-- [CatÃ¡logo](docs/catalogo.md)
-- [ImportaÃ§Ã£o de provas](docs/importacao-provas.md)
-- [Pipeline de IA](docs/pipeline-ia.md)
+---
+
+# 📖 Documentação
+
+Consulte a pasta **/docs** para obter mais detalhes sobre:
+
+* Catálogo
+* Importação de provas
+* Pipeline de Inteligência Artificial
+
+---
+
+# 📄 Licença
+
+Este projeto foi desenvolvido com finalidade educacional e de preparação para concursos públicos.
+
+As provas, gabaritos e demais conteúdos oficiais pertencem aos respectivos órgãos e bancas organizadoras.
